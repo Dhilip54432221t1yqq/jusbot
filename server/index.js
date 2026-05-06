@@ -47,8 +47,10 @@ app.use(helmet());
 // CORS: restrict to known origins
 const allowedOrigins = [
   'http://localhost:5173',       // Dev frontend
-  'http://51.20.131.117',        // Production
+  'http://51.20.131.117',        // Production (Legacy)
   'https://51.20.131.117',
+  'https://jusbot-9fv7zs24z-dhips-projects-5fe2be83.vercel.app', // Your Vercel URL
+  'https://jusbot.vercel.app', // General Vercel URL
 ];
 
 app.use(cors({

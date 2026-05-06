@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import config from "../config";
 import {
     Plug, Search, CheckCircle, ExternalLink, FileSpreadsheet
 } from "lucide-react";
@@ -218,7 +219,7 @@ export default function IntegrationsPage() {
                 setConnecting(id);
                 // Note: using direct window.location for external redirect
                 // Assumed backend is running on port 3000
-                window.location.href = `http://localhost:3000/api/auth/google?user_id=${user.id}&workspace_id=${workspaceId}`;
+                window.location.href = `${config.API_BASE}/auth/google?user_id=${user.id}&workspace_id=${workspaceId}`;
             } else {
                 alert("Please log in first");
             }
@@ -388,7 +389,7 @@ export default function IntegrationsPage() {
                                         {isConnected && item.id === 'google_sheets' && (
                                             <button
                                                 onClick={() => {
-                                                    if (user) window.location.href = `http://localhost:3000/api/auth/google?user_id=${user.id}`;
+                                                    if (user) window.location.href = `${config.API_BASE}/auth/google?user_id=${user.id}`;
                                                 }}
                                                 className="w-10 h-10 rounded-xl flex items-center justify-center border border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors flex-shrink-0"
                                                 title="Reconnect"
@@ -621,7 +622,7 @@ export default function IntegrationsPage() {
                                 className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-pink-500 to-rose-600 hover:shadow-lg hover:shadow-pink-200 disabled:opacity-50 disabled:shadow-none transition-all"
                                 onClick={async () => {
                                     try {
-                                        const response = await fetch('http://localhost:3000/api/instagram/connect', {
+                                        const response = await fetch(`${config.API_BASE}/instagram/connect`, {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json' },
                                             body: JSON.stringify({

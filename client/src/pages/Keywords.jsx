@@ -7,7 +7,8 @@ import {
 } from 'lucide-react';
 import { supabase } from '../supabase';
 
-const API = 'http://localhost:3000/api';
+import config from '../config';
+const API = `${config.API_BASE}`;
 
 // ─── Toggle Switch ────────────────────────────────────────────────────────────
 function Toggle({ checked = false, onChange = () => {} }) {
