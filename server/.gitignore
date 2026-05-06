@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.development
+
+# Keys and certificates
+*.pem
+*.key
+*.cert
+
+# Logs
+*.log
+logs/
+check.log
+crash.log
+server_error.log
+diag_results.log
+
+# Test output
+test_output*.log
+check_tables_out.txt
+crash_clean.txt
+error.txt
+
+# OS files
+.DS_Store
+Thumbs.db
