@@ -22,6 +22,7 @@ router.post('/products', requireWorkspaceAccess(['owner', 'admin']), async (req,
         const product = await ecommerceService.createProduct(req.workspaceId, req.body);
         res.status(201).json(product);
     } catch (error) {
+        console.error('[Ecommerce Route] Product Creation Failed:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -32,6 +33,7 @@ router.patch('/products/:id', requireWorkspaceAccess(['owner', 'admin']), async 
         const product = await ecommerceService.updateProduct(req.params.id, req.body);
         res.json(product);
     } catch (error) {
+        console.error(`[Ecommerce Route] Product Update Failed for ${req.params.id}:`, error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -224,6 +226,7 @@ router.post('/collections', requireWorkspaceAccess(['owner', 'admin']), async (r
         const collection = await ecommerceService.createCollection(req.workspaceId, req.body);
         res.status(201).json(collection);
     } catch (error) {
+        console.error('[Ecommerce Route] Collection Creation Failed:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -260,6 +263,7 @@ router.post('/discounts', requireWorkspaceAccess(['owner', 'admin']), async (req
         const discount = await ecommerceService.createDiscount(req.workspaceId, req.body);
         res.status(201).json(discount);
     } catch (error) {
+        console.error('[Ecommerce Route] Discount Creation Failed:', error);
         res.status(500).json({ error: error.message });
     }
 });

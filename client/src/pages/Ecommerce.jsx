@@ -139,7 +139,8 @@ export default function Ecommerce() {
         tags: '',
         note: '',
         status: 'active',
-        image_url: ''
+        image_url: '',
+        collectionIds: []
     });
 
     // Variant Options State
@@ -329,9 +330,17 @@ export default function Ecommerce() {
                 method: isEditMode ? 'PUT' : 'POST',
                 body: JSON.stringify(payload)
             });
-            if (res.ok) { closeCollectionForm(); fetchData(); }
+            if (res.ok) { 
+                toast.success(isEditMode ? 'Collection updated' : 'Collection created');
+                closeCollectionForm(); 
+                fetchData(); 
+            } else {
+                const errData = await res.json().catch(() => ({}));
+                toast.error(errData.error || errData.message || 'Failed to save collection');
+            }
         } catch (err) {
-            console.error('Failed to create collection:', err);
+            console.error('Failed to save collection:', err);
+            toast.error('An error occurred while saving collection');
         }
     };
 
@@ -399,7 +408,7 @@ export default function Ecommerce() {
                 fetchData(); 
             } else {
                 const errData = await res.json().catch(() => ({}));
-                toast.error(errData.message || 'Failed to save discount');
+                toast.error(errData.error || errData.message || 'Failed to save discount');
             }
         } catch (err) {
             console.error('Failed to save discount:', err);
@@ -432,7 +441,7 @@ export default function Ecommerce() {
                 fetchData(); 
             } else {
                 const errData = await res.json().catch(() => ({}));
-                toast.error(errData.message || 'Failed to create product');
+                toast.error(errData.error || errData.message || 'Failed to create product');
             }
         } catch (err) {
             console.error('Failed to create product:', err);
@@ -465,7 +474,7 @@ export default function Ecommerce() {
                 fetchData(); 
             } else {
                 const errData = await res.json().catch(() => ({}));
-                toast.error(errData.message || 'Failed to update product');
+                toast.error(errData.error || errData.message || 'Failed to update product');
             }
         } catch (err) {
             console.error('Failed to update product:', err);

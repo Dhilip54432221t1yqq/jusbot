@@ -4,23 +4,27 @@ import crypto from 'crypto';
 async function generateCustomId(workspaceId, prefix, table) {
     const match = workspaceId.match(/\d+/);
     const numPart = match ? match[0] : workspaceId;
+    const prefixStr = `${numPart}${prefix}`;
 
+    // Improved query: 
+    // 1. Filter by prefix to ensure we find the latest item in the current sequence
+    // 2. Order by ID descending to find the highest sequence number
     const { data, error } = await supabase
         .from(table)
         .select('id')
         .eq('workspace_id', workspaceId)
-        .order('created_at', { ascending: false })
+        .like('id', `${prefixStr}%`)
+        .order('id', { ascending: false })
         .limit(1);
 
     if (error) {
-        console.error(`Error generating custom ID for ${table}:`, error);
+        console.error(`[ID Generator] Error fetching last ID for ${table}:`, error);
         throw error;
     }
 
     let nextNum = 1;
     if (data && data.length > 0 && data[0].id) {
         const lastId = data[0].id;
-        const prefixStr = `${numPart}${prefix}`;
         if (lastId.startsWith(prefixStr)) {
             const seqStr = lastId.substring(prefixStr.length);
             const seqNum = parseInt(seqStr, 10);
@@ -31,7 +35,9 @@ async function generateCustomId(workspaceId, prefix, table) {
     }
 
     const paddedNum = (table === 'products' ? nextNum.toString().padStart(3, '0') : nextNum.toString().padStart(2, '0'));
-    return `${numPart}${prefix}${paddedNum}`;
+    const finalId = `${prefixStr}${paddedNum}`;
+    console.log(`[ID Generator] Generated new ID for ${table}: ${finalId} (Last ID: ${data?.[0]?.id || 'none'})`);
+    return finalId;
 }export const ecommerceService = {
     // Product Management
     async getProducts(workspaceId) {
@@ -48,17 +54,26 @@ async function generateCustomId(workspaceId, prefix, table) {
         const { variants, collectionIds, ...productBase } = productData;
         const newId = await generateCustomId(workspaceId, '1', 'products');
         
+        console.log(`[Ecommerce] Creating product ${newId} in workspace ${workspaceId}`);
+        
         const { data, error } = await supabase
             .from('products')
             .insert([{ ...productBase, id: newId, workspace_id: workspaceId }])
             .select()
             .single();
-        if (error) throw error;
+        
+        if (error) {
+            console.error(`[Ecommerce] Error creating product ${newId}:`, error);
+            throw error;
+        }
 
         if (productBase.has_variants && variants && variants.length > 0) {
             const variantsToInsert = variants.map((v, i) => ({ ...v, id: `${data.id}-var-${i+1}`, product_id: data.id }));
             const { error: varError } = await supabase.from('product_variants').insert(variantsToInsert);
-            if (varError) throw varError;
+            if (varError) {
+                console.error(`[Ecommerce] Error creating variants for product ${newId}:`, varError);
+                throw varError;
+            }
         }
 
         if (collectionIds && collectionIds.length > 0) {
