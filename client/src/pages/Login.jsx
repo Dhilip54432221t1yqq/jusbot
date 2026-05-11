@@ -20,6 +20,9 @@ export default function LoginPage() {
     const [forgotSuccess, setForgotSuccess] = useState(false);
     const [loginAttempts, setLoginAttempts] = useState(0);
     const [lockoutUntil, setLockoutUntil] = useState(null);
+    const [showWorkspaceInput, setShowWorkspaceInput] = useState(false);
+    const [workspaceName, setWorkspaceName] = useState("");
+    const [loggedInUser, setLoggedInUser] = useState(null);
 
     useEffect(() => {
         const link = document.createElement("link");
@@ -36,9 +39,13 @@ export default function LoginPage() {
                     .from('workspaces')
                     .select('id')
                     .eq('user_id', session.user.id)
+                    .order('created_at', { ascending: false })
                     .limit(1);
                 if (workspaces && workspaces.length > 0) {
                     navigate(`/${workspaces[0].id}/dashboard`, { replace: true });
+                } else {
+                    setLoggedInUser(session.user);
+                    setShowWorkspaceInput(true);
                 }
             }
         };
@@ -119,6 +126,7 @@ export default function LoginPage() {
                         .from('workspaces')
                         .select('id')
                         .eq('user_id', user.id)
+                        .order('created_at', { ascending: false })
                         .limit(1);
 
                     console.log('Existing workspaces:', workspaces, 'Error:', wsError);
@@ -131,45 +139,13 @@ export default function LoginPage() {
 
                     if (workspaces && workspaces.length > 0) {
                         workspaceId = workspaces[0].id;
+                        console.log('Redirecting to workspace:', workspaceId);
+                        void navigate(`/${workspaceId}/dashboard`);
                     } else {
-                        console.log('No workspace found, creating default...');
-                        const { data: newWs, error: createError } = await supabase
-                            .from('workspaces')
-                            .insert([{ name: 'JusBot', user_id: user.id }])
-                            .select()
-                            .single();
-
-                        if (createError) {
-                            console.error('Workspace creation error:', createError);
-                            throw createError;
-                        }
-                        if (!newWs) {
-                            throw new Error('Failed to create workspace: No data returned');
-                        }
-                        workspaceId = newWs.id;
-
-                        // Create default user fields for the new workspace
-                        console.log('Creating default user fields for workspace:', workspaceId);
-                        const defaultFields = [
-                            { name: 'User Name', type: 'Text', workspace_id: workspaceId },
-                            { name: 'User Id', type: 'Number', workspace_id: workspaceId },
-                            { name: 'Phone', type: 'Text', workspace_id: workspaceId },
-                            { name: 'Email', type: 'Text', workspace_id: workspaceId },
-                            { name: 'Last User Input', type: 'Text', workspace_id: workspaceId }
-                        ];
-
-                        const { error: fieldsError } = await supabase
-                            .from('user_fields')
-                            .insert(defaultFields);
-
-                        if (fieldsError) {
-                            console.error('Error creating default fields:', fieldsError);
-                            // We don't throw here to avoid blocking login if just fields fail
-                        }
+                        console.log('No workspace found, showing inline input...');
+                        setLoggedInUser(user);
+                        setShowWorkspaceInput(true);
                     }
-
-                    console.log('Redirecting to workspace:', workspaceId);
-                    void navigate(`/${workspaceId}/dashboard`);
                 }
             }
         } catch (error) {
@@ -186,6 +162,60 @@ export default function LoginPage() {
                     setLockoutUntil(null);
                 }, 30000);
             }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleCreateWorkspace = async () => {
+        if (!workspaceName.trim()) {
+            setErrorMsg("Please enter a workspace name.");
+            return;
+        }
+
+        setLoading(true);
+        setErrorMsg("");
+
+        try {
+            const user = loggedInUser;
+            
+            // 1. Create Workspace
+            const { data: workspace, error: wsError } = await supabase
+                .from('workspaces')
+                .insert([{ name: workspaceName, user_id: user.id }])
+                .select()
+                .single();
+
+            if (wsError) throw wsError;
+
+            // 2. Add as Owner
+            const { error: memError } = await supabase
+                .from('workspace_members')
+                .insert({
+                    workspace_id: workspace.id,
+                    user_id: user.id,
+                    role: 'owner'
+                });
+            
+            if (memError && memError.code !== '23505') throw memError;
+
+            // 3. Create Default Fields
+            const defaultFields = [
+                { name: 'User Name', type: 'Text', workspace_id: workspace.id },
+                { name: 'User Id', type: 'Number', workspace_id: workspace.id },
+                { name: 'Phone', type: 'Text', workspace_id: workspace.id },
+                { name: 'Email', type: 'Text', workspace_id: workspace.id },
+                { name: 'Last User Input', type: 'Text', workspace_id: workspace.id }
+            ];
+
+            await supabase.from('user_fields').insert(defaultFields);
+
+            console.log('Workspace created, redirecting...');
+            navigate(`/${workspace.id}/dashboard`);
+
+        } catch (error) {
+            console.error('Error creating workspace:', error);
+            setErrorMsg(error instanceof Error ? error.message : "Failed to create workspace.");
         } finally {
             setLoading(false);
         }
@@ -308,21 +338,6 @@ export default function LoginPage() {
                                 color: "#111", margin: "0 0 8px",
                                 letterSpacing: "-0.03em",
                             }}>{isSignUp ? "Sign up" : "Sign in"}</h3>
-                            <p style={{
-                                margin: 0, fontSize: 14,
-                                color: "#999", letterSpacing: "-0.01em",
-                            }}>
-                                {isSignUp ? "Already have an account? " : "Don't have an account? "}
-                                <span
-                                    onClick={() => {
-                                        setIsSignUp(!isSignUp);
-                                        setErrorMsg("");
-                                    }}
-                                    style={{ color: "#22c55e", fontWeight: 600, cursor: "pointer" }} // Green link
-                                >
-                                    {isSignUp ? "Sign in" : "Sign up free"}
-                                </span>
-                            </p>
                         </div>
 
                         {/* Error Message */}
@@ -352,6 +367,7 @@ export default function LoginPage() {
                                     transition: "color 0.2s",
                                 }} />
                                 <input
+                                    disabled={showWorkspaceInput}
                                     type="email"
                                     placeholder="you@example.com"
                                     value={email}
@@ -365,7 +381,8 @@ export default function LoginPage() {
                                         outline: "none", boxSizing: "border-box",
                                         transition: "border-color 0.2s",
                                         fontFamily: "'Inter', sans-serif",
-                                        background: "#fff",
+                                        background: showWorkspaceInput ? "#f9fafb" : "#fff",
+                                        cursor: showWorkspaceInput ? "not-allowed" : "text",
                                     }}
                                 />
                             </div>
@@ -386,6 +403,7 @@ export default function LoginPage() {
                                     transition: "color 0.2s",
                                 }} />
                                 <input
+                                    disabled={showWorkspaceInput}
                                     type={showPass ? "text" : "password"}
                                     placeholder="Enter your password"
                                     value={pass}
@@ -399,21 +417,65 @@ export default function LoginPage() {
                                         outline: "none", boxSizing: "border-box",
                                         transition: "border-color 0.2s",
                                         fontFamily: "'Inter', sans-serif",
-                                        background: "#fff",
+                                        background: showWorkspaceInput ? "#f9fafb" : "#fff",
+                                        cursor: showWorkspaceInput ? "not-allowed" : "password",
                                     }}
                                 />
-                                <button onClick={() => setShowPass(!showPass)} style={{
-                                    position: "absolute", right: 12, top: "50%",
-                                    transform: "translateY(-50%)",
-                                    background: "none", border: "none",
-                                    cursor: "pointer", color: "#bbb", display: "flex", padding: 4,
-                                }}>
+                                <button 
+                                    disabled={showWorkspaceInput}
+                                    onClick={() => setShowPass(!showPass)} 
+                                    style={{
+                                        position: "absolute", right: 12, top: "50%",
+                                        transform: "translateY(-50%)",
+                                        background: "none", border: "none",
+                                        cursor: showWorkspaceInput ? "not-allowed" : "pointer", 
+                                        color: "#bbb", display: "flex", padding: 4,
+                                    }}>
                                     {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
                                 </button>
                             </div>
                         </div>
 
-                        {!isSignUp && (
+                        {showWorkspaceInput && (
+                            <div style={{ marginTop: 20, marginBottom: 20 }}>
+                                <label style={{
+                                    display: "block", marginBottom: 7,
+                                    fontSize: 13, fontWeight: 600,
+                                    color: "#444", letterSpacing: "-0.01em",
+                                }}>Workspace Name</label>
+                                <input
+                                    autoFocus
+                                    type="text"
+                                    placeholder="e.g. Acme Corp"
+                                    value={workspaceName}
+                                    onChange={e => setWorkspaceName(e.target.value)}
+                                    style={{
+                                        width: "100%", padding: "12px 14px",
+                                        border: "1.5px solid #22c55e", 
+                                        borderRadius: 10, fontSize: 14, color: "#111",
+                                        outline: "none", boxSizing: "border-box",
+                                        fontFamily: "'Inter', sans-serif",
+                                        background: "#fff",
+                                    }}
+                                />
+                                <div style={{ textAlign: 'center', marginTop: 12 }}>
+                                    <span 
+                                        onClick={async () => {
+                                            await supabase.auth.signOut();
+                                            setShowWorkspaceInput(false);
+                                            setLoggedInUser(null);
+                                            setEmail("");
+                                            setPass("");
+                                        }}
+                                        style={{ fontSize: 12, color: '#666', cursor: 'pointer', fontWeight: 600 }}
+                                    >
+                                        Sign out / Use different account
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+
+                        {!isSignUp && !showWorkspaceInput && (
                             <div style={{ textAlign: "right", marginBottom: 26 }}>
                                 <span
                                     onClick={() => {
@@ -429,12 +491,11 @@ export default function LoginPage() {
                             </div>
                         )}
 
-                        {/* Spacing for Sign Up mode if forgot password is hidden */}
-                        {isSignUp && <div style={{ marginBottom: 26 }}></div>}
+                        {isSignUp && !showWorkspaceInput && <div style={{ marginBottom: 26 }}></div>}
 
                         {/* Button */}
                         <button
-                            onClick={() => { void handleAuth(); }}
+                            onClick={() => { if (showWorkspaceInput) void handleCreateWorkspace(); else void handleAuth(); }}
                             disabled={loading}
                             onMouseEnter={e => { if (!loading) e.currentTarget.style.background = "#16a34a"; }} // Green-600 hover
                             onMouseLeave={e => { e.currentTarget.style.background = "#22c55e"; }} // Green-500 normal
@@ -460,10 +521,10 @@ export default function LoginPage() {
                                         borderRadius: "50%",
                                         animation: "spin 0.8s linear infinite",
                                     }} />
-                                    {isSignUp ? "Signing up..." : "Signing in..."}
+                                    {showWorkspaceInput ? "Creating Workspace..." : (isSignUp ? "Signing up..." : "Signing in...")}
                                 </>
                             ) : (
-                                <>{isSignUp ? "Sign Up" : "Sign In"} <ArrowRight size={15} /></>
+                                <>{showWorkspaceInput ? "Create Workspace" : (isSignUp ? "Sign Up" : "Sign In")} <ArrowRight size={15} /></>
                             )}
                         </button>
 
