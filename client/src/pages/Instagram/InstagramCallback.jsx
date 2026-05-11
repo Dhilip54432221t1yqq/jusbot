@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import config from '../../config';
 
 export default function InstagramCallback() {
   const [searchParams] = useSearchParams();
@@ -19,7 +20,7 @@ export default function InstagramCallback() {
       }
 
       try {
-        const response = await fetch(`http://localhost:3000/api/instagram/exchange-token`, {
+        const response = await fetch(`${config.API_BASE}/instagram/exchange-token`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

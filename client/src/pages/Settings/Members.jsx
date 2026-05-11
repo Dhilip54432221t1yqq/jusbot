@@ -5,6 +5,7 @@ import {
     Mail, Loader2, Search, MoreVertical,
     UserCircle, ShieldCheck
 } from 'lucide-react';
+import config from '../../config';
 
 export default function Members() {
     const { workspaceId } = useParams();
@@ -17,7 +18,7 @@ export default function Members() {
     const fetchMembers = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`http://localhost:3000/api/workspaces/${workspaceId}/members`);
+            const res = await fetch(`${config.API_BASE}/workspaces/${workspaceId}/members`);
             if (!res.ok) throw new Error('Failed to fetch members');
             const data = await res.ok ? await res.json() : [];
             setMembers(data);
@@ -40,7 +41,7 @@ export default function Members() {
         setInviting(true);
         setError(null);
         try {
-            const res = await fetch(`http://localhost:3000/api/workspaces/${workspaceId}/members`, {
+            const res = await fetch(`${config.API_BASE}/workspaces/${workspaceId}/members`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: inviteEmail, role: 'member' })
@@ -62,7 +63,7 @@ export default function Members() {
         if (!window.confirm('Are you sure you want to remove this member?')) return;
         
         try {
-            const res = await fetch(`http://localhost:3000/api/workspaces/${workspaceId}/members/${userId}`, {
+            const res = await fetch(`${config.API_BASE}/workspaces/${workspaceId}/members/${userId}`, {
                 method: 'DELETE'
             });
             if (!res.ok) throw new Error('Failed to remove member');

@@ -2,8 +2,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Plus, Edit2, Trash2, Search, RefreshCw, Folder } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import config from '../config';
 
-const API_BASE = 'http://localhost:3000/api/content';
+const API_BASE = `${config.API_BASE}/content`;
 
 const ContentManager = ({ onClose = () => {}, isModal = true, workspaceId }) => {
     const [activeTab, setActiveTab] = useState('user'); // user | bot | system | tags | templates

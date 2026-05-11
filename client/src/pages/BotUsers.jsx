@@ -5,8 +5,9 @@ import {
     Globe, Clock, Tag, X, User, Trash2, Edit3, Search, Filter as FilterIcon
 } from 'lucide-react';
 import { useParams } from 'react-router-dom';
+import config from '../config';
 
-const API_BASE = 'http://localhost:3000/api/contacts';
+const API_BASE = `${config.API_BASE}/contacts`;
 
 const BotUsers = () => {
     const { workspaceId } = useParams();

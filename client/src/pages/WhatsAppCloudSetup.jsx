@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { MessageCircle, CheckCircle, Key, Lock, Bell, Wifi, Activity, AlertCircle, RefreshCw, Copy, Save, Phone, Eye, EyeOff, Zap, ChevronRight } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../supabase";
+import config from "../config";
 
 export default function WhatsAppCloudSetup() {
     const { workspaceId } = useParams();
@@ -27,7 +28,7 @@ export default function WhatsAppCloudSetup() {
     const fbAppId = import.meta.env.VITE_FB_APP_ID || '';
     const fbConfigId = import.meta.env.VITE_FB_CONFIG_ID || '';
 
-    const webhookUrl = `http://localhost:3000/api/whatsapp-cloud/webhook?workspaceId=${workspaceId}`;
+    const webhookUrl = `${config.API_BASE}/whatsapp-cloud/webhook?workspaceId=${workspaceId}`;
 
     useEffect(() => {
         if (workspaceId) {
@@ -46,7 +47,7 @@ export default function WhatsAppCloudSetup() {
     const fetchStatus = async () => {
         try {
             setIsRefreshing(true);
-            const response = await fetch(`http://localhost:3000/api/whatsapp-cloud/status/${workspaceId}`);
+            const response = await fetch(`${config.API_BASE}/whatsapp-cloud/status/${workspaceId}`);
             const data = await response.json();
             if (data.connected && data.credentials) {
                 // Already connected — go to the connected dashboard
@@ -61,7 +62,7 @@ export default function WhatsAppCloudSetup() {
 
     const fetchLogs = async () => {
         try {
-            const response = await fetch(`http://localhost:3000/api/whatsapp-cloud/logs/${workspaceId}`);
+            const response = await fetch(`${config.API_BASE}/whatsapp-cloud/logs/${workspaceId}`);
             const data = await response.json();
             if (Array.isArray(data)) setLogs(data);
         } catch (e) { console.error(e); }
@@ -74,7 +75,7 @@ export default function WhatsAppCloudSetup() {
         }
         setIsSaving(true);
         try {
-            const response = await fetch('http://localhost:3000/api/whatsapp-cloud/config', {
+            const response = await fetch(`${config.API_BASE}/whatsapp-cloud/config`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ workspaceId, phoneNumberId, wabaId, accessToken, verifyToken, apiVersion })
@@ -91,7 +92,7 @@ export default function WhatsAppCloudSetup() {
         if (!testPhone) return;
         setIsTesting(true);
         try {
-            const response = await fetch('http://localhost:3000/api/whatsapp-cloud/test', {
+            const response = await fetch(`${config.API_BASE}/whatsapp-cloud/test`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -125,7 +126,7 @@ export default function WhatsAppCloudSetup() {
         window.FB.login(async (response) => {
             if (response.authResponse?.code) {
                 try {
-                    const res = await fetch('http://localhost:3000/api/whatsapp-cloud/exchange-code', {
+                    const res = await fetch(`${config.API_BASE}/whatsapp-cloud/exchange-code`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ code: response.authResponse.code, workspaceId })

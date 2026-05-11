@@ -5,8 +5,9 @@ import {
   Calendar, Shield, Save, ArrowDown, Trash2, Edit2, Zap
 } from 'lucide-react';
 import { supabase } from '../supabase';
+import config from '../config';
 
-const API = 'http://localhost:3000/api';
+const API = config.API_BASE;
 
 export default function SequenceEditor() {
     const { workspaceId, id } = useParams();

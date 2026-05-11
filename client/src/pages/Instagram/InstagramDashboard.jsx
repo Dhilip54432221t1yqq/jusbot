@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import config from '../../config';
 import { 
   Instagram, BarChart3, Image as ImageIcon, MessageSquare, Send, 
   Search, Hash, AtSign, Users, ShoppingBag, Upload, AlertTriangle,
@@ -29,7 +30,7 @@ export default function InstagramDashboard() {
   useEffect(() => {
     const fetchAccount = async () => {
       try {
-        const res = await fetch(`http://localhost:3000/api/instagram/overview/details/${workspaceId}`);
+        const res = await fetch(`${config.API_BASE}/instagram/overview/details/${workspaceId}`);
         const data = await res.json();
         setAccount(data);
       } catch (err) {

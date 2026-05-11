@@ -2,6 +2,7 @@ import React from 'react';
 import { MessageCircle, LayoutDashboard, Cloud, BarChart3, Plug, ShoppingCart, Settings, GitBranch, Folder, Instagram, Users, Zap, ChevronDown } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useWorkspace } from '../contexts/WorkspaceContext';
+import config from '../config';
 
 /**
  * @param {Object} props
@@ -66,7 +67,7 @@ export default function Sidebar({ activeNav }) {
         if (item.key === 'whatsapp') {
             // Check if already connected — route to connected dashboard or setup
             try {
-                const res = await fetch(`http://localhost:3000/api/whatsapp-cloud/status/${workspaceId}`);
+                const res = await fetch(`${config.API_BASE}/whatsapp-cloud/status/${workspaceId}`);
                 const data = await res.json();
                 if (data.connected) {
                     navigate(`/${workspaceId}/whatsapp-connected`);
@@ -80,7 +81,7 @@ export default function Sidebar({ activeNav }) {
         }
         if (item.key === 'instagram') {
             try {
-                const res = await fetch(`http://localhost:3000/api/instagram/overview/check/${workspaceId}`);
+                const res = await fetch(`${config.API_BASE}/instagram/overview/check/${workspaceId}`);
                 const data = await res.json();
                 if (data.connected) {
                     navigate(`/${workspaceId}/instagram-dashboard`);

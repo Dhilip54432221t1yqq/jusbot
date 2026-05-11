@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MessageCircle, CheckCircle, Loader2 } from 'lucide-react';
+import config from '../config';
 
 const WhatsAppEmbeddedSignup = ({ workspaceId, onSetupComplete }) => {
   const [status, setStatus] = useState('NOT_CONNECTED'); // 'NOT_CONNECTED', 'CONNECTING', 'CONNECTED'
@@ -85,7 +86,7 @@ const WhatsAppEmbeddedSignup = ({ workspaceId, onSetupComplete }) => {
 
           try {
             // Immediately exchange code for token
-            const res = await fetch('http://localhost:3000/api/whatsapp-cloud/exchange-code', {
+            const res = await fetch(`${config.API_BASE}/whatsapp-cloud/exchange-code`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({

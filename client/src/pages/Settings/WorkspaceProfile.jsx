@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { supabase } from '../../supabase';
+import config from '../../config';
 
 const timezones = [
     { value: 'UTC', label: '(UTC+00:00) UTC' },
@@ -16,7 +17,7 @@ const timezones = [
     { value: 'Europe/London', label: '(UTC+00:00) London' },
     { value: 'Europe/Paris', label: '(UTC+01:00) Paris' },
     { value: 'Asia/Dubai', label: '(UTC+04:00) Dubai' },
-    { value: 'Asia/Kolkata', label: '(UTC+05:30) Mumbai, Kolkata' },
+    { value: 'Asia/Kolkata', label: '(UTC+05:30) Chennai, Mumbai, Kolkata' },
     { value: 'Asia/Singapore', label: '(UTC+08:00) Singapore' },
     { value: 'Asia/Tokyo', label: '(UTC+09:00) Tokyo' },
     { value: 'Australia/Sydney', label: '(UTC+11:00) Sydney' }
@@ -31,7 +32,7 @@ const themes = [
 export default function WorkspaceProfile() {
     const { workspaceId } = useParams();
     /** @type {any} */
-    const { activeWorkspace, fetchWorkspace } = useWorkspace();
+    const { activeWorkspace, fetchWorkspace, getAuthHeaders } = useWorkspace();
     
     const [formData, setFormData] = useState({
         name: '',
@@ -64,8 +65,23 @@ export default function WorkspaceProfile() {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        setUploading(true);
+        // --- Dimension Check ---
+        const checkDimensions = () => new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+                if (img.width < 512 || img.height < 512) {
+                    reject(new Error(`Image is too small (${img.width}x${img.height}). Please use at least 512x512px.`));
+                } else {
+                    resolve(true);
+                }
+            };
+            img.onerror = () => reject(new Error('Failed to load image for validation.'));
+            img.src = URL.createObjectURL(file);
+        });
+
         try {
+            await checkDimensions();
+            setUploading(true);
             const fileExt = file.name.split('.').pop();
             const fileName = `${workspaceId}-${Math.random()}.${fileExt}`;
             const filePath = `logos/${fileName}`;
@@ -83,7 +99,7 @@ export default function WorkspaceProfile() {
             setFormData(prev => ({ ...prev, logo_url: publicUrl }));
         } catch (error) {
             console.error('Error uploading logo:', error);
-            alert('Failed to upload logo');
+            alert('Logo Upload Failed: ' + error.message);
         } finally {
             setUploading(false);
         }
@@ -95,9 +111,10 @@ export default function WorkspaceProfile() {
         setSaved(false);
 
         try {
-            const response = await fetch(`http://localhost:3000/api/workspaces/${workspaceId}`, {
+            const headers = await getAuthHeaders();
+            const response = await fetch(`${config.API_BASE}/workspaces/${workspaceId}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify(formData)
             });
 
