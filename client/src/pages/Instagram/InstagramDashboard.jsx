@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import config from '../../config';
 import { 
   Instagram, BarChart3, Image as ImageIcon, MessageSquare, Send, 
   Search, Hash, AtSign, Users, ShoppingBag, Upload, AlertTriangle,
   RefreshCw
 } from 'lucide-react';
+import LottieLoader from '../../components/LottieLoader';
 
 // Sub-components (could be in separate files)
 import AccountOverview from './components/AccountOverview';
@@ -21,8 +23,10 @@ import ProductTagging from './components/ProductTagging';
 import ContentPublishing from './components/ContentPublishing';
 import CopyrightCheck from './components/CopyrightCheck';
 
+
 export default function InstagramDashboard() {
   const { workspaceId } = useParams();
+  const { authFetch } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [account, setAccount] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -30,7 +34,7 @@ export default function InstagramDashboard() {
   useEffect(() => {
     const fetchAccount = async () => {
       try {
-        const res = await fetch(`${config.API_BASE}/instagram/overview/details/${workspaceId}`);
+        const res = await authFetch(`${config.API_BASE}/instagram/overview/details/${workspaceId}`);
         const data = await res.json();
         setAccount(data);
       } catch (err) {
@@ -58,11 +62,7 @@ export default function InstagramDashboard() {
   ];
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <RefreshCw className="w-10 h-10 text-pink-500 animate-spin" />
-      </div>
-    );
+    return <LottieLoader size={250} message="Loading Instagram..." />;
   }
 
   return (

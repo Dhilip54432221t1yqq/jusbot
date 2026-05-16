@@ -6,8 +6,10 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { supabase } from '../supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 import config from '../config';
+import LottieLoader from '../components/LottieLoader';
 const API = `${config.API_BASE}`;
 
 // ─── Toggle Switch ────────────────────────────────────────────────────────────
@@ -24,6 +26,7 @@ function Toggle({ checked = false, onChange = () => {} }) {
 
 export default function Keywords() {
   const { workspaceId } = useParams();
+  const { authFetch } = useAuth();
 
   const [keywords, setKeywords] = useState([]);
   const [flows, setFlows] = useState([]);
@@ -55,7 +58,7 @@ export default function Keywords() {
   const fetchKeywords = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/keywords?workspace_id=${workspaceId}`);
+      const res = await authFetch(`${API}/keywords?workspace_id=${workspaceId}`);
       const data = await res.json();
       setKeywords(Array.isArray(data) ? data : []);
     } catch (e) { console.error(e); }
@@ -69,7 +72,7 @@ export default function Keywords() {
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch(`${API}/automation/settings?workspace_id=${workspaceId}`);
+      const res = await authFetch(`${API}/automation/settings?workspace_id=${workspaceId}`);
       const data = await res.json();
       if (data) {
         setDefaultReply({
@@ -84,16 +87,15 @@ export default function Keywords() {
   const handleToggle = async (kw = {}) => {
     const newStatus = kw.status === 'active' ? 'inactive' : 'active';
     setKeywords(prev => prev.map(k => k.id === kw.id ? { ...k, status: newStatus } : k));
-    await fetch(`${API}/keywords/${kw.id}`, {
+    await authFetch(`${API}/keywords/${kw.id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...kw, workspace_id: workspaceId, status: newStatus })
     });
   };
 
   const handleDelete = async (id = '') => {
     if (!window.confirm('Delete this keyword rule?')) return;
-    await fetch(`${API}/keywords/${id}?workspace_id=${workspaceId}`, { method: 'DELETE' });
+    await authFetch(`${API}/keywords/${id}?workspace_id=${workspaceId}`, { method: 'DELETE' });
     showToast('Keyword rule deleted');
     fetchKeywords();
   };
@@ -103,9 +105,8 @@ export default function Keywords() {
     setDefaultReply(next);
     setSavingSettings(true);
     try {
-      await fetch(`${API}/automation/settings`, {
+      await authFetch(`${API}/automation/settings`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           workspace_id: workspaceId,
           default_reply_enabled: next.enabled,
@@ -219,9 +220,8 @@ export default function Keywords() {
           </div>
 
           {loading ? (
-            <div className="flex items-center justify-center py-24 text-slate-400 text-sm gap-2">
-              <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
-              Loading keywords...
+            <div className="flex items-center justify-center py-24">
+              <LottieLoader size={180} message="Loading keywords..." />
             </div>
           ) : filteredKeywords.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 gap-3 text-slate-400">
@@ -328,6 +328,7 @@ function KeywordModal({ keyword = null, flows = [], workspaceId = '', onClose = 
         flow_id: keyword?.flow_id || '',
         status: keyword?.status || 'active'
     });
+    const { authFetch } = useAuth();
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
 
@@ -347,9 +348,8 @@ function KeywordModal({ keyword = null, flows = [], workspaceId = '', onClose = 
             const url = keyword ? `${API}/keywords/${keyword.id}` : `${API}/keywords`;
             const method = keyword ? 'PUT' : 'POST';
             
-            const res = await fetch(url, {
+            const res = await authFetch(url, {
                 method,
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             });
             const data = await res.json();

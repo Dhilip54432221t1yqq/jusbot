@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MessageCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import config from '../config';
 
 const WhatsAppEmbeddedSignup = ({ workspaceId, onSetupComplete }) => {
@@ -7,6 +8,7 @@ const WhatsAppEmbeddedSignup = ({ workspaceId, onSetupComplete }) => {
   const [connectionDetails, setConnectionDetails] = useState(null);
   const [error, setError] = useState(null);
 
+  const { authFetch } = useAuth();
   const fbAppId = import.meta.env.VITE_FB_APP_ID || '';
   const fbConfigId = import.meta.env.VITE_FB_CONFIG_ID || '';
 
@@ -86,13 +88,12 @@ const WhatsAppEmbeddedSignup = ({ workspaceId, onSetupComplete }) => {
 
           try {
             // Immediately exchange code for token
-            const res = await fetch(`${config.API_BASE}/whatsapp-cloud/exchange-code`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                code: authCode,
-                workspaceId
-              })
+            const res = await authFetch(`${config.API_BASE}/whatsapp-cloud/exchange-code`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    code: authCode,
+                    workspaceId
+                })
             });
 
             const data = await res.json();

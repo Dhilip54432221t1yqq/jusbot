@@ -2,6 +2,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from './supabase';
+import { useAuth } from './contexts/AuthContext';
 import ReactFlow, {
   useNodesState,
   useEdgesState,
@@ -45,6 +46,7 @@ const GOOGLE_SHEET_ACTIONS = [
 
 // ─── Google Sheets Config ────────────────────────────────────────────────────
 const GoogleSheetsConfig = ({ action: initialAction, onSave, onBack, workspaceId }) => {
+  const { authFetch } = useAuth();
   const [loading, setLoading] = useState(false);
   const [spreadsheets, setSpreadsheets] = useState([]);
   const [sheets, setSheets] = useState([]);
@@ -61,10 +63,7 @@ const GoogleSheetsConfig = ({ action: initialAction, onSave, onBack, workspaceId
     (async () => {
       setLoading(true);
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const res = await fetch(`${appConfig.API_URL}/api/sheets/list`, {
-          headers: { 'Authorization': `Bearer ${session?.access_token}`, 'x-workspace-id': workspaceId }
-        });
+        const res = await authFetch(`${appConfig.API_URL}/api/sheets/list`);
         const data = await res.json();
         setSpreadsheets(data.files || []);
       } catch (e) { console.error(e); } finally { setLoading(false); }
@@ -75,10 +74,7 @@ const GoogleSheetsConfig = ({ action: initialAction, onSave, onBack, workspaceId
     if (!cfg.spreadsheetId || !workspaceId) return;
     (async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const res = await fetch(`${appConfig.API_URL}/api/sheets/${cfg.spreadsheetId}/details`, {
-          headers: { 'Authorization': `Bearer ${session?.access_token}`, 'x-workspace-id': workspaceId }
-        });
+        const res = await authFetch(`${appConfig.API_URL}/api/sheets/${cfg.spreadsheetId}/details`);
         const data = await res.json();
         setSheets(data.sheets?.map(s => s.properties.title) || []);
       } catch (e) { console.error(e); }
@@ -90,10 +86,8 @@ const GoogleSheetsConfig = ({ action: initialAction, onSave, onBack, workspaceId
     if (!['insert_row', 'update_row', 'upsert_row'].includes(cfg.action)) return;
     (async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const res = await fetch(`${appConfig.API_URL}/api/sheets/headers`, {
+        const res = await authFetch(`${appConfig.API_URL}/api/sheets/headers`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}`, 'x-workspace-id': workspaceId },
           body: JSON.stringify({ spreadsheetId: cfg.spreadsheetId, sheetName: cfg.sheetName })
         });
         const data = await res.json();
@@ -329,13 +323,14 @@ const SetVariableModal = ({ action, onSave, onClose, onDelete, workspaceId }) =>
 
 // ─── Sequence Action Modal ────────────────────────────────────────────────────
 const SequenceActionModal = ({ action, onSave, onClose, workspaceId }) => {
+  const { authFetch } = useAuth();
   const [sequenceId, setSequenceId] = useState(action.sequenceId || '');
   const [sequences, setSequences] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!workspaceId) return;
-    fetch(`${appConfig.API_URL}/api/sequences?workspace_id=${workspaceId}`)
+    authFetch(`${appConfig.API_URL}/api/sequences?workspace_id=${workspaceId}`)
       .then(r => r.json()).then(d => setSequences(d || [])).finally(() => setLoading(false));
   }, [workspaceId]);
 

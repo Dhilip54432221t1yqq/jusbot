@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { X, Loader2, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWorkspace } from '../contexts/WorkspaceContext';
-import { supabase } from '../supabase';
+import { useAuth } from '../contexts/AuthContext';
 import config from '../config';
 
 export default function CreateWorkspaceModal({ /** @type {boolean} */ isOpen, /** @type {() => void} */ onClose }) {
     const [name, setName] = useState('');
     const [loading, setLoading] = useState(false);
     const { fetchWorkspaces } = useWorkspace();
+    const { authFetch } = useAuth();
 
     const handleSubmit = async (/** @type {any} */ e) => {
         e.preventDefault();
@@ -16,15 +17,8 @@ export default function CreateWorkspaceModal({ /** @type {boolean} */ isOpen, /*
 
         setLoading(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) throw new Error('Not authenticated');
-
-            const response = await fetch(`${config.API_BASE}/workspaces`, {
+            const response = await authFetch(`${config.API_BASE}/workspaces`, {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`
-                },
                 body: JSON.stringify({ name })
             });
 

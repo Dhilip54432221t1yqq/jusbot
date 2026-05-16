@@ -126,6 +126,7 @@ router.get('/:id/members', requireWorkspaceAccess(['owner', 'admin', 'member']),
                 id,
                 user_id,
                 role,
+                email,
                 created_at,
                 profiles:user_id (
                     email,
@@ -140,27 +141,38 @@ router.get('/:id/members', requireWorkspaceAccess(['owner', 'admin', 'member']),
             // Fallback: Fetch without join if profiles table is missing or relationship is broken
             const { data: simpleData, error: simpleError } = await supabase
                 .from('workspace_members')
-                .select('id, user_id, role, created_at')
+                .select('id, user_id, role, email, created_at')
                 .eq('workspace_id', id);
 
             if (simpleError) throw simpleError;
             
             return res.json(simpleData.map(m => ({
                 ...m,
-                email: 'Unknown (Run SQL)',
-                name: 'Member'
+                email: m.email || 'Unknown',
+                name: m.role === 'owner' ? 'Owner' : 'Member'
             })));
         }
         
         // Flatten and format
-        const members = data.map(m => ({
-            id: m.id,
-            user_id: m.user_id,
-            role: m.role,
-            created_at: m.created_at,
-            email: Array.isArray(m.profiles) ? m.profiles[0]?.email : m.profiles?.email || 'Unknown',
-            name: Array.isArray(m.profiles) ? m.profiles[0]?.full_name : m.profiles?.full_name || 'Member'
-        }));
+        const members = data.map(m => {
+            const profile = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
+            const email = profile?.email || m.email || 'Unknown';
+            const name = profile?.full_name || (
+                m.role === 'owner' ? 'Owner' : 
+                m.role === 'admin' ? 'Admin' : 
+                (m.user_id ? 'Member' : 'Invited (Pending)')
+            );
+            
+            return {
+                id: m.id,
+                user_id: m.user_id,
+                role: m.role,
+                created_at: m.created_at,
+                email: email,
+                name: name,
+                avatar_url: profile?.avatar_url
+            };
+        });
 
         res.json(members);
     } catch (err) {
@@ -177,30 +189,29 @@ router.post('/:id/members', requireWorkspaceAccess(['owner', 'admin']), async (r
     if (!email) return res.status(400).json({ error: 'Email is required' });
 
     try {
-        // 1. Find user by email in profiles
-        const { data: profile, error: pError } = await supabase
+        // 1. Find user by email in profiles (optional)
+        const { data: profile } = await supabase
             .from('profiles')
             .select('id')
-            .eq('email', email)
-            .single();
+            .eq('email', email.toLowerCase())
+            .maybeSingle();
 
-        if (pError || !profile) {
-            return res.status(404).json({ error: 'User not found. They must sign up for Reflx first.' });
-        }
+        // 2. Add as member (with user_id if found, otherwise just email)
+        const memberData = {
+            workspace_id: id,
+            user_id: profile?.id || null,
+            role,
+            email: email.toLowerCase()
+        };
 
-        // 2. Add as member
         const { data: member, error: mError } = await supabase
             .from('workspace_members')
-            .insert({
-                workspace_id: id,
-                user_id: profile.id,
-                role
-            })
+            .insert(memberData)
             .select()
             .single();
 
         if (mError) {
-            if (mError.code === '23505') return res.status(400).json({ error: 'User is already a member' });
+            if (mError.code === '23505') return res.status(400).json({ error: 'User is already invited or a member' });
             throw mError;
         }
 
@@ -212,20 +223,42 @@ router.post('/:id/members', requireWorkspaceAccess(['owner', 'admin']), async (r
 });
 
 // 6. Remove a member (Owner/Admin only)
-router.delete('/:workspaceId/members/:userId', requireWorkspaceAccess(['owner', 'admin']), async (req, res) => {
-    const { workspaceId, userId } = req.params;
+router.delete('/:workspaceId/members/:memberId', requireWorkspaceAccess(['owner', 'admin']), async (req, res) => {
+    const { workspaceId, memberId } = req.params;
 
     try {
         const { error } = await supabase
             .from('workspace_members')
             .delete()
             .eq('workspace_id', workspaceId)
-            .eq('user_id', userId);
+            .eq('id', memberId);
 
         if (error) throw error;
         res.json({ success: true });
     } catch (err) {
         console.error('Error removing member:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 7. Update member role (Owner/Admin only)
+router.patch('/:workspaceId/members/:memberId/role', requireWorkspaceAccess(['owner', 'admin']), async (req, res) => {
+    const { workspaceId, memberId } = req.params;
+    const { role } = req.body;
+
+    if (!role) return res.status(400).json({ error: 'Role is required' });
+
+    try {
+        const { error } = await supabase
+            .from('workspace_members')
+            .update({ role })
+            .eq('workspace_id', workspaceId)
+            .eq('id', memberId);
+
+        if (error) throw error;
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Error updating role:', err);
         res.status(500).json({ error: err.message });
     }
 });

@@ -6,6 +6,8 @@ import {
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import { supabase } from "../supabase";
 import { useWorkspace } from "../contexts/WorkspaceContext";
+import { useAuth } from "../contexts/AuthContext";
+import LottieLoader from "../components/LottieLoader";
 
 // ... (Integration logos kept same as before, abbreviated here for brevity if allowed, but full content provided below)
 const integrations = [
@@ -146,6 +148,7 @@ export default function IntegrationsPage() {
     const { workspaceId } = useParams();
     /** @type {any} */
     const { activeWorkspace } = useWorkspace();
+    const { authFetch } = useAuth();
     const [searchParams] = useSearchParams();
 
     const [search, setSearch] = useState("");
@@ -248,13 +251,7 @@ export default function IntegrationsPage() {
         if (!workspaceId) return;
         try {
             // Fetch list of sheets from backend with JWT auth
-            const { data: { session } } = await supabase.auth.getSession();
-            const response = await fetch(`${config.API_BASE}/sheets/list`, {
-                headers: {
-                    'Authorization': `Bearer ${session?.access_token}`,
-                    'x-workspace-id': workspaceId
-                }
-            });
+            const response = await authFetch(`${config.API_BASE}/sheets/list`);
             const data = await response.json();
             if (data.files) {
                 setSheets(data.files);
@@ -313,8 +310,8 @@ export default function IntegrationsPage() {
                     </div>
                 </div>
 
-                {/* Cards */}
-                <div className="grid grid-cols-3 gap-5">
+                {/* Integration List */}
+                <div className="flex flex-col gap-3">
                     {filtered.map((item) => {
                         const isConnected = connected[item.id];
                         const isConnecting = connecting === item.id;
@@ -322,43 +319,40 @@ export default function IntegrationsPage() {
                         return (
                             <div key={item.id}
                                 className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden group"
-                                style={{ borderTop: `3px solid ${item.color}` }}
+                                style={{ borderLeft: `4px solid ${item.color}` }}
                             >
-                                <div className="p-5">
-                                    {/* Top row */}
-                                    <div className="flex items-start justify-between mb-4">
-                                        <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
-                                            style={{ background: item.bg, border: `1px solid ${item.border}` }}>
-                                            {item.logo}
-                                        </div>
-                                        {isConnected && (
-                                            <span className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full"
-                                                style={{ background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0" }}>
-                                                <CheckCircle size={11} /> Connected
-                                            </span>
-                                        )}
+                                <div className="px-5 py-4 flex items-center gap-5">
+                                    {/* Logo */}
+                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                                        style={{ background: item.bg, border: `1px solid ${item.border}`, color: item.color }}>
+                                        {item.logo}
                                     </div>
 
-                                    {/* Name + category */}
-                                    <div className="mb-1 flex items-center gap-2">
-                                        <h3 className="font-bold text-slate-800 text-base" style={{ fontFamily: "'Sora',sans-serif", letterSpacing: "-0.02em" }}>
-                                            {item.name}
-                                        </h3>
+                                    {/* Name + Category */}
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2.5">
+                                            <h3 className="font-bold text-slate-800 text-[15px]" style={{ fontFamily: "'Sora',sans-serif", letterSpacing: "-0.02em" }}>
+                                                {item.name}
+                                            </h3>
+                                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md"
+                                                style={{ background: item.bg, color: item.color }}>
+                                                {item.category}
+                                            </span>
+                                            {isConnected && (
+                                                <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                                                    style={{ background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0" }}>
+                                                    <CheckCircle size={10} /> Connected
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
-                                    <span className="inline-block text-xs font-semibold px-2 py-0.5 rounded-md mb-3"
-                                        style={{ background: item.bg, color: item.color }}>
-                                        {item.category}
-                                    </span>
-                                    <p className="text-sm text-slate-500 leading-relaxed mb-5" style={{ letterSpacing: "-0.01em" }}>
-                                        {item.desc}
-                                    </p>
 
                                     {/* Actions */}
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 flex-shrink-0">
                                         <button
                                             onClick={() => handleConnect(item.id)}
                                             disabled={isConnecting}
-                                            className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2"
+                                            className="px-5 py-2 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2"
                                             style={{
                                                 background: isConnected
                                                     ? "#f8fafc"
@@ -379,7 +373,7 @@ export default function IntegrationsPage() {
                                                     Connecting…
                                                 </>
                                             ) : isConnected ? (
-                                                "Configure" // Changed from Disconnect to Configure for sheets
+                                                "Configure"
                                             ) : (
                                                 "Connect"
                                             )}
@@ -391,17 +385,17 @@ export default function IntegrationsPage() {
                                                 onClick={() => {
                                                     if (user) window.location.href = `${config.API_BASE}/auth/google?user_id=${user.id}`;
                                                 }}
-                                                className="w-10 h-10 rounded-xl flex items-center justify-center border border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors flex-shrink-0"
+                                                className="w-9 h-9 rounded-xl flex items-center justify-center border border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors flex-shrink-0"
                                                 title="Reconnect"
                                             >
-                                                <Plug size={15} />
+                                                <Plug size={14} />
                                             </button>
                                         )}
 
                                         <button
-                                            className="w-10 h-10 rounded-xl flex items-center justify-center border border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors flex-shrink-0"
+                                            className="w-9 h-9 rounded-xl flex items-center justify-center border border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors flex-shrink-0"
                                         >
-                                            <ExternalLink size={15} />
+                                            <ExternalLink size={14} />
                                         </button>
                                     </div>
                                 </div>
@@ -431,8 +425,7 @@ export default function IntegrationsPage() {
                         <div className="flex-1 overflow-y-auto p-2">
                             {sheets.length === 0 ? (
                                 <div className="text-center py-10">
-                                    <div className="animate-spin w-6 h-6 border-2 border-slate-300 border-t-green-500 rounded-full mx-auto mb-2"></div>
-                                    <p className="text-sm text-slate-500">Loading sheets...</p>
+                                    <LottieLoader size={80} message="Loading sheets..." />
                                 </div>
                             ) : (
                                 <div className="space-y-1">
@@ -622,9 +615,8 @@ export default function IntegrationsPage() {
                                 className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-pink-500 to-rose-600 hover:shadow-lg hover:shadow-pink-200 disabled:opacity-50 disabled:shadow-none transition-all"
                                 onClick={async () => {
                                     try {
-                                        const response = await fetch(`${config.API_BASE}/instagram/connect`, {
+                                        const response = await authFetch(`${config.API_BASE}/instagram/connect`, {
                                             method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
                                             body: JSON.stringify({
                                                 workspace_id: workspaceId,
                                                 user_id: user.id,

@@ -5,6 +5,7 @@ import {
     Copy, Info, Loader2, Image as ImageIcon
 } from 'lucide-react';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../supabase';
 import config from '../../config';
 
@@ -32,7 +33,8 @@ const themes = [
 export default function WorkspaceProfile() {
     const { workspaceId } = useParams();
     /** @type {any} */
-    const { activeWorkspace, fetchWorkspace, getAuthHeaders } = useWorkspace();
+    const { activeWorkspace, fetchWorkspace } = useWorkspace();
+    const { authFetch } = useAuth();
     
     const [formData, setFormData] = useState({
         name: '',
@@ -111,10 +113,8 @@ export default function WorkspaceProfile() {
         setSaved(false);
 
         try {
-            const headers = await getAuthHeaders();
-            const response = await fetch(`${config.API_BASE}/workspaces/${workspaceId}`, {
+            const response = await authFetch(`${config.API_BASE}/workspaces/${workspaceId}`, {
                 method: 'PUT',
-                headers,
                 body: JSON.stringify(formData)
             });
 

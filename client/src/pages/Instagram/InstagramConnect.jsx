@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Instagram, Facebook, ArrowRight, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import config from '../../config';
+
 
 export default function InstagramConnect() {
   const { workspaceId } = useParams();
   const navigate = useNavigate();
+  const { authFetch } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -13,7 +16,7 @@ export default function InstagramConnect() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${config.API_BASE}/instagram/auth-url?workspaceId=${workspaceId}`);
+      const response = await authFetch(`${config.API_BASE}/instagram/auth-url?workspaceId=${workspaceId}`);
       const data = await response.json();
       if (data.url) {
         window.location.href = data.url;

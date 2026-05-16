@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Plus, Edit2, Trash2, Search, RefreshCw, Folder } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import config from '../config';
+import LottieLoader from './LottieLoader';
 
 const API_BASE = `${config.API_BASE}/content`;
 
@@ -142,7 +143,7 @@ const ContentManager = ({ onClose = () => {}, isModal = true, workspaceId }) => 
     );
 
     const renderTable = () => {
-        if (loading) return <div className="p-8 text-center text-slate-400">Loading variables...</div>;
+        if (loading) return <LottieLoader />;
         if (filteredItems.length === 0) return (
             <div className="flex flex-col items-center justify-center p-12 text-slate-400 gap-3">
                 <Folder size={48} className="opacity-20" />

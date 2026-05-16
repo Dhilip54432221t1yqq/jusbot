@@ -9,14 +9,25 @@ export default function UserDropdown() {
     const { workspaceId } = useParams();
     const [isOpen, setIsOpen] = useState(false);
     const [user, setUser] = useState(null);
+    const [profile, setProfile] = useState(null);
     const dropdownRef = useRef(null);
 
     useEffect(() => {
-        const getUser = async () => {
+        const getUserAndProfile = async () => {
             const { data: { user } } = await supabase.auth.getUser();
-            setUser(user);
+            if (user) {
+                setUser(user);
+                const { data: profileData } = await supabase
+                    .from('profiles')
+                    .select('full_name, avatar_url')
+                    .eq('id', user.id)
+                    .single();
+                if (profileData) {
+                    setProfile(profileData);
+                }
+            }
         };
-        getUser();
+        getUserAndProfile();
 
         const handleClickOutside = (event) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -40,9 +51,13 @@ export default function UserDropdown() {
                 onClick={() => setIsOpen(!isOpen)}
                 className="flex items-center p-1 hover:bg-slate-50 rounded-xl transition-all group"
             >
-                <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-indigo-100 group-hover:scale-105 transition-transform">
-                    {user.email?.charAt(0).toUpperCase()}
-                </div>
+                {profile?.avatar_url ? (
+                    <img src={profile.avatar_url} alt="Profile" className="w-9 h-9 rounded-xl object-cover shadow-sm group-hover:scale-105 transition-transform shrink-0" />
+                ) : (
+                    <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-indigo-100 group-hover:scale-105 transition-transform shrink-0">
+                        {user.email?.charAt(0).toUpperCase()}
+                    </div>
+                )}
             </button>
 
             <AnimatePresence>
@@ -53,9 +68,18 @@ export default function UserDropdown() {
                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
                         className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-2xl p-2 z-[100] origin-top-right"
                     >
-                        <div className="p-4 border-b border-slate-50 mb-1">
-                            <p className="text-sm font-bold text-slate-800">{user.email?.split('@')[0]}</p>
-                            <p className="text-xs text-slate-400 font-medium truncate">{user.email}</p>
+                        <div className="p-4 border-b border-slate-50 mb-1 flex items-center gap-3">
+                            {profile?.avatar_url ? (
+                                <img src={profile.avatar_url} alt="Profile" className="w-10 h-10 rounded-xl object-cover shadow-sm shrink-0" />
+                            ) : (
+                                <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-sm shrink-0">
+                                    {user.email?.charAt(0).toUpperCase()}
+                                </div>
+                            )}
+                            <div className="min-w-0">
+                                <p className="text-sm font-bold text-slate-800 truncate">{profile?.full_name || user.email?.split('@')[0]}</p>
+                                <p className="text-xs text-slate-400 font-medium truncate">{user.email}</p>
+                            </div>
                         </div>
 
                         <div className="space-y-1">

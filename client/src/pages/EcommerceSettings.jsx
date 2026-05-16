@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import config from '../config';
 import { toast } from 'react-hot-toast';
+import LottieLoader from '../components/LottieLoader';
 
 const API_BASE = `${config.API_BASE}/ecommerce`;
 
@@ -416,7 +417,7 @@ export default function EcommerceSettings({ onSave }) {
             <style>{SETTINGS_STYLES}</style>
             <div className="ecom-settings">
                 {loading ? (
-                    <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>Loading settings...</div>
+                    <div style={{ padding: '40px', display: 'flex', justifyContent: 'center' }}><LottieLoader size={120} message="Loading settings..." /></div>
                 ) : (
                     <>
                 {/* 1. Store Details */}

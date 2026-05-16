@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 import config from '../../config';
+import LottieLoader from '../../components/LottieLoader';
 
 export default function InstagramCallback() {
   const [searchParams] = useSearchParams();
   const { workspaceId } = useParams();
   const navigate = useNavigate();
+  const { authFetch } = useAuth();
   const [status, setStatus] = useState('processing'); // 'processing', 'success', 'error'
   const [error, setError] = useState(null);
 
@@ -20,13 +23,11 @@ export default function InstagramCallback() {
       }
 
       try {
-        const response = await fetch(`${config.API_BASE}/instagram/exchange-token`, {
+        const response = await authFetch(`${config.API_BASE}/instagram/exchange-token`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             code,
-            workspaceId,
-            userId: '00000000-0000-0000-0000-000000000000' // Placeholder for now, should come from auth context
+            workspaceId
           })
         });
 
@@ -54,8 +55,8 @@ export default function InstagramCallback() {
       <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl p-10 text-center border border-slate-100">
         {status === 'processing' && (
           <>
-            <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
+            <div className="mx-auto mb-6">
+              <LottieLoader size={200} />
             </div>
             <h2 className="text-2xl font-bold text-slate-800 mb-2">Connecting to Instagram</h2>
             <p className="text-slate-500">Please wait while we set up your account...</p>

@@ -1,7 +1,8 @@
 import React from 'react';
-import { MessageCircle, LayoutDashboard, Cloud, BarChart3, Plug, ShoppingCart, Settings, GitBranch, Folder, Instagram, Users, Zap, ChevronDown } from 'lucide-react';
+import { MessageCircle, LayoutDashboard, Cloud, BarChart3, Plug, ShoppingCart, Settings, GitBranch, Folder, Instagram, Users, Zap, ChevronDown, CreditCard } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useWorkspace } from '../contexts/WorkspaceContext';
+import { useAuth } from '../contexts/AuthContext';
 import config from '../config';
 
 /**
@@ -10,6 +11,7 @@ import config from '../config';
  */
 export default function Sidebar({ activeNav }) {
     const navigate = useNavigate();
+    const { authFetch } = useAuth();
     const { workspaceId } = useParams();
 
     const navItems = [
@@ -53,7 +55,8 @@ export default function Sidebar({ activeNav }) {
                 { name: 'Channels', path: `/${workspaceId}/settings/channels` },
                 { name: 'Audit Logs', path: `/${workspaceId}/settings/logs` },
             ]
-        }
+        },
+        { name: 'Billing', icon: CreditCard, path: `/${workspaceId}/billing` }
     ];
 
     /** @type {any} */
@@ -67,7 +70,7 @@ export default function Sidebar({ activeNav }) {
         if (item.key === 'whatsapp') {
             // Check if already connected — route to connected dashboard or setup
             try {
-                const res = await fetch(`${config.API_BASE}/whatsapp-cloud/status/${workspaceId}`);
+                const res = await authFetch(`${config.API_BASE}/whatsapp-cloud/status/${workspaceId}`);
                 const data = await res.json();
                 if (data.connected) {
                     navigate(`/${workspaceId}/whatsapp-connected`);
@@ -81,7 +84,7 @@ export default function Sidebar({ activeNav }) {
         }
         if (item.key === 'instagram') {
             try {
-                const res = await fetch(`${config.API_BASE}/instagram/overview/check/${workspaceId}`);
+                const res = await authFetch(`${config.API_BASE}/instagram/overview/check/${workspaceId}`);
                 const data = await res.json();
                 if (data.connected) {
                     navigate(`/${workspaceId}/instagram-dashboard`);

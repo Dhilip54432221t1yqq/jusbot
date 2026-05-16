@@ -35,14 +35,14 @@ export default function LoginPage() {
         const checkSession = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {
-                const { data: workspaces } = await supabase
-                    .from('workspaces')
-                    .select('id')
+                const { data: memberships } = await supabase
+                    .from('workspace_members')
+                    .select('workspace_id')
                     .eq('user_id', session.user.id)
                     .order('created_at', { ascending: false })
                     .limit(1);
-                if (workspaces && workspaces.length > 0) {
-                    navigate(`/${workspaces[0].id}/dashboard`, { replace: true });
+                if (memberships && memberships.length > 0) {
+                    navigate(`/${memberships[0].workspace_id}/dashboard`, { replace: true });
                 } else {
                     setLoggedInUser(session.user);
                     setShowWorkspaceInput(true);
@@ -121,15 +121,22 @@ export default function LoginPage() {
                         .from('profiles')
                         .upsert({ id: user.id, email: user.email }, { onConflict: 'id' });
 
+                    // Claim pending invitations
+                    await supabase
+                        .from('workspace_members')
+                        .update({ user_id: user.id })
+                        .eq('email', user.email.toLowerCase())
+                        .is('user_id', null);
+
                     // Check for existing workspace
-                    let { data: workspaces, error: wsError } = await supabase
-                        .from('workspaces')
-                        .select('id')
+                    let { data: memberships, error: wsError } = await supabase
+                        .from('workspace_members')
+                        .select('workspace_id')
                         .eq('user_id', user.id)
                         .order('created_at', { ascending: false })
                         .limit(1);
-
-                    console.log('Existing workspaces:', workspaces, 'Error:', wsError);
+                    
+                    console.log('Existing memberships:', memberships, 'Error:', wsError);
 
                     let workspaceId;
                     if (wsError) {
@@ -137,8 +144,8 @@ export default function LoginPage() {
                         throw wsError;
                     }
 
-                    if (workspaces && workspaces.length > 0) {
-                        workspaceId = workspaces[0].id;
+                    if (memberships && memberships.length > 0) {
+                        workspaceId = memberships[0].workspace_id;
                         console.log('Redirecting to workspace:', workspaceId);
                         void navigate(`/${workspaceId}/dashboard`);
                     } else {
@@ -527,6 +534,27 @@ export default function LoginPage() {
                                 <>{showWorkspaceInput ? "Create Workspace" : (isSignUp ? "Sign Up" : "Sign In")} <ArrowRight size={15} /></>
                             )}
                         </button>
+
+                        {/* Toggle Auth Mode */}
+                        <div style={{ marginTop: 24, textAlign: "center" }}>
+                            <p style={{ fontSize: 13, color: "#666", fontWeight: 500 }}>
+                                {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
+                                <span
+                                    onClick={() => {
+                                        setIsSignUp(!isSignUp);
+                                        setErrorMsg("");
+                                    }}
+                                    style={{
+                                        color: "#22c55e",
+                                        fontWeight: 700,
+                                        cursor: "pointer",
+                                        marginLeft: 4
+                                    }}
+                                >
+                                    {isSignUp ? "Sign In" : "Sign Up"}
+                                </span>
+                            </p>
+                        </div>
 
                         {/* Terms */}
                         <p style={{

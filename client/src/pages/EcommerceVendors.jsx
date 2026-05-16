@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import config from '../config';
 import { toast } from 'react-hot-toast';
 import { Search, Plus, Edit3, X } from 'lucide-react';
+import LottieLoader from '../components/LottieLoader';
 
 const API_BASE = `${config.API_BASE}/ecommerce`;
 
@@ -179,7 +180,7 @@ export default function EcommerceVendors() {
                     </table>
                 ) : loading ? (
                     <div className="v-table" style={{ borderRadius: 8 }}>
-                        <div className="v-empty">Loading vendors...</div>
+                        <div className="v-empty"><LottieLoader size={180} message="Loading vendors..." /></div>
                     </div>
                 ) : (
                     <div className="v-table" style={{ borderRadius: 8 }}>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import {
   Plus, X, CheckCircle, ChevronLeft, Clock, Send, 
   Calendar, Shield, Save, ArrowDown, Trash2, Edit2, Zap
@@ -12,6 +13,7 @@ const API = config.API_BASE;
 export default function SequenceEditor() {
     const { workspaceId, id } = useParams();
     const navigate = useNavigate();
+    const { authFetch } = useAuth();
 
     const [sequence, setSequence] = useState(null);
     const [messages, setMessages] = useState([]);
@@ -29,8 +31,8 @@ export default function SequenceEditor() {
     const fetchData = async () => {
         try {
             const [sRes, mRes] = await Promise.all([
-                fetch(`${API}/sequences/${id}`), // I need a GET single sequence route, or just list with ID filter
-                fetch(`${API}/sequences/${id}/messages`)
+                authFetch(`${API}/sequences/${id}`),
+                authFetch(`${API}/sequences/${id}/messages`)
             ]);
             // For now, assume a GET single sequence is needed or handle locally
             // Let's just use the messages for now as we have the ID and name usually comes from previous page or an API
@@ -52,7 +54,7 @@ export default function SequenceEditor() {
 
     const handleDeleteMsg = async (msgId) => {
         if (!window.confirm('Remove this step?')) return;
-        await fetch(`${API}/sequences/messages/${msgId}`, { method: 'DELETE' });
+        await authFetch(`${API}/sequences/messages/${msgId}`, { method: 'DELETE' });
         fetchData();
     };
 
@@ -149,6 +151,7 @@ export default function SequenceEditor() {
                     msg={editingMsg}
                     flows={flows}
                     sequenceId={id}
+                    authFetch={authFetch}
                     onClose={() => setShowModal(false)}
                     onSaved={() => { fetchData(); setShowModal(false); }}
                 />
@@ -165,7 +168,7 @@ export default function SequenceEditor() {
     );
 }
 
-function MessageModal({ msg, flows, sequenceId, onClose, onSaved }) {
+function MessageModal({ msg, flows, sequenceId, authFetch, onClose, onSaved }) {
     const [form, setForm] = useState({
         delay_value: msg?.delay_value || 0,
         delay_unit: msg?.delay_unit || 'minutes',
@@ -185,9 +188,8 @@ function MessageModal({ msg, flows, sequenceId, onClose, onSaved }) {
         try {
             const url = msg ? `${API}/sequences/messages/${msg.id}` : `${API}/sequences/${sequenceId}/messages`;
             const method = msg ? 'PUT' : 'POST';
-            await fetch(url, {
+            await authFetch(url, {
                 method,
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ...form, days: JSON.stringify(form.days) })
             });
             onSaved();

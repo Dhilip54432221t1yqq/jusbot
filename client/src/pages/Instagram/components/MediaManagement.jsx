@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Heart, MessageCircle, ExternalLink, Play, Layers } from 'lucide-react';
+import { useAuth } from '../../../contexts/AuthContext';
 import config from '../../../config';
 
 export default function MediaManagement({ workspaceId, igUserId }) {
+  const { authFetch } = useAuth();
   const [media, setMedia] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchMedia = async () => {
       try {
-        const res = await fetch(`${config.API_BASE}/instagram/media/${igUserId}`);
+        const res = await authFetch(`${config.API_BASE}/instagram/media/${igUserId}`);
         const data = await res.json();
         setMedia(data);
       } catch (err) {

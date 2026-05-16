@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import LottieLoader from '../../components/LottieLoader';
 
 export default function InstagramAuthRedirect() {
   const navigate = useNavigate();
@@ -21,10 +22,7 @@ export default function InstagramAuthRedirect() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-slate-50">
-      <div className="text-center">
-        <div className="w-12 h-12 border-4 border-pink-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <p className="text-slate-600 font-medium">Redirecting you back to your workspace...</p>
-      </div>
+      <LottieLoader size={140} message="Redirecting you back to your workspace..." />
     </div>
   );
 }

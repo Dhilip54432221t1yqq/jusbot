@@ -1,5 +1,6 @@
 import { createContext, useContext, useState } from 'react';
 import { supabase } from '../supabase';
+import { useAuth } from './AuthContext';
 import config from '../config';
 
 const WorkspaceContext = createContext(null);
@@ -28,6 +29,7 @@ const getAuthHeaders = async () => {
 };
 
 export const WorkspaceProvider = ({ children }) => {
+    const { authFetch } = useAuth();
     const [activeWorkspace, setActiveWorkspace] = useState(null);
     const [workspaces, setWorkspaces] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -58,8 +60,7 @@ export const WorkspaceProvider = ({ children }) => {
     const fetchWorkspaces = async () => {
         setListLoading(true);
         try {
-            const headers = await getAuthHeaders();
-            const res = await fetch(`${config.API_BASE}/workspaces`, { headers });
+            const res = await authFetch(`${config.API_BASE}/workspaces`);
             if (!res.ok) throw new Error(`API error: ${res.status}`);
             const data = await res.json();
             if (Array.isArray(data)) {

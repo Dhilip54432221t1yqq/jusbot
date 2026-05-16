@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { MessageCircle, RefreshCw, Activity, CheckCircle, AlertCircle, Zap, ExternalLink, ChevronRight } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../supabase";
 import config from "../config";
 
 export default function WhatsAppConnected() {
     const { workspaceId } = useParams();
+    const { authFetch } = useAuth();
     const navigate = useNavigate();
 
     const [phoneNumberId, setPhoneNumberId] = useState('');
@@ -28,7 +30,7 @@ export default function WhatsAppConnected() {
     const fetchStatus = async () => {
         setIsRefreshing(true);
         try {
-            const res = await fetch(`${config.API_BASE}/whatsapp-cloud/status/${workspaceId}`);
+            const res = await authFetch(`${config.API_BASE}/whatsapp-cloud/status/${workspaceId}`);
             const data = await res.json();
             if (data.connected && data.credentials) {
                 setPhoneNumberId(data.credentials.phone_number_id || '');

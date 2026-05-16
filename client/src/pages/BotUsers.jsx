@@ -5,12 +5,15 @@ import {
     Globe, Clock, Tag, X, User, Trash2, Edit3, Search, Filter as FilterIcon
 } from 'lucide-react';
 import { useParams } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import config from '../config';
+import LottieLoader from '../components/LottieLoader';
 
 const API_BASE = `${config.API_BASE}/contacts`;
 
 const BotUsers = () => {
     const { workspaceId } = useParams();
+    const { authFetch } = useAuth();
     
     const [contacts, setContacts] = useState(/** @type {any[]} */ ([]));
     const [segments, setSegments] = useState(/** @type {any[]} */ ([]));
@@ -67,7 +70,7 @@ const BotUsers = () => {
                 }
             });
 
-            const res = await fetch(`${API_BASE}?${queryParams.toString()}`);
+            const res = await authFetch(`${API_BASE}?${queryParams.toString()}`);
             const data = await res.json();
             setContacts(Array.isArray(data?.items) ? data.items : []);
         } catch (err) {
@@ -79,7 +82,7 @@ const BotUsers = () => {
 
     const fetchSegments = async () => {
         try {
-            const res = await fetch(`${API_BASE}/segments?workspace_id=${workspaceId}`);
+            const res = await authFetch(`${API_BASE}/segments?workspace_id=${workspaceId}`);
             const data = await res.json();
             setSegments(Array.isArray(data) ? data : []);
         } catch (err) {
@@ -89,7 +92,7 @@ const BotUsers = () => {
 
     const fetchImportJobs = async () => {
         try {
-            const res = await fetch(`${API_BASE}/import-jobs?workspace_id=${workspaceId}`);
+            const res = await authFetch(`${API_BASE}/import-jobs?workspace_id=${workspaceId}`);
             const data = await res.json();
             setImportJobs(Array.isArray(data) ? data : []);
         } catch (err) {
@@ -139,9 +142,8 @@ const BotUsers = () => {
                 channel_user_id: newUserForm.channel_user_id || `usr_${Date.now()}`
             };
 
-            const res = await fetch(`${API_BASE}/upsert`, {
+            const res = await authFetch(`${API_BASE}/upsert`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             });
 
@@ -170,9 +172,8 @@ const BotUsers = () => {
                 }
             });
 
-            const res = await fetch(`${API_BASE}/segments`, {
+            const res = await authFetch(`${API_BASE}/segments`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     workspace_id: workspaceId,
                     name: newSegmentName,
@@ -195,7 +196,7 @@ const BotUsers = () => {
     /** @param {any} contact */
     const handleContactClick = async (contact) => {
         try {
-            const res = await fetch(`${API_BASE}/${contact.id}?workspace_id=${workspaceId}`);
+            const res = await authFetch(`${API_BASE}/${contact.id}?workspace_id=${workspaceId}`);
             const data = await res.json();
             setSelectedContact(data);
         } catch (err) {
@@ -362,7 +363,11 @@ const BotUsers = () => {
                             </thead>
                             <tbody className="divide-y divide-slate-50">
                                 {loading ? (
-                                    <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-400">Loading audience...</td></tr>
+                                    <tr>
+                                        <td colSpan={6} className="relative h-[400px]">
+                                            <LottieLoader size={220} message="Loading audience..." />
+                                        </td>
+                                    </tr>
                                 ) : contacts.length === 0 ? (
                                     <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-400">No users found. Start an interaction to see data!</td></tr>
                                 ) : contacts.map((/** @type {any} */ contact) => (

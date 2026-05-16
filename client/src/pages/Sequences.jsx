@@ -5,13 +5,16 @@ import {
   MessageSquare, Clock, Layout, Play, Send, Zap, Activity
 } from 'lucide-react';
 import { supabase } from '../supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 import config from '../config';
+import LottieLoader from '../components/LottieLoader';
 const API = `${config.API_BASE}`;
 
 export default function Sequences() {
   const { workspaceId } = useParams();
   const navigate = useNavigate();
+  const { authFetch } = useAuth();
 
   const [sequences, setSequences] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,7 +29,7 @@ export default function Sequences() {
   const fetchSequences = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/sequences?workspace_id=${workspaceId}`);
+      const res = await authFetch(`${API}/sequences?workspace_id=${workspaceId}`);
       const data = await res.json();
       setSequences(Array.isArray(data) ? data : []);
     } catch (e) { console.error(e); }
@@ -36,25 +39,23 @@ export default function Sequences() {
   const handleToggle = async (seq) => {
     const newStatus = seq.status === 'active' ? 'inactive' : 'active';
     setSequences(prev => prev.map(s => s.id === seq.id ? { ...s, status: newStatus } : s));
-    await fetch(`${API}/sequences/${seq.id}`, {
+    await authFetch(`${API}/sequences/${seq.id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: newStatus })
     });
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this sequence and all its messages?')) return;
-    await fetch(`${API}/sequences/${id}`, { method: 'DELETE' });
+    await authFetch(`${API}/sequences/${id}`, { method: 'DELETE' });
     fetchSequences();
   };
 
   const handleCreate = async () => {
     if (!newSeqName.trim()) return;
     try {
-      const res = await fetch(`${API}/sequences`, {
+      const res = await authFetch(`${API}/sequences`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ workspace_id: workspaceId, name: newSeqName })
       });
       const data = await res.json();
@@ -106,9 +107,8 @@ export default function Sequences() {
             </div>
 
             {loading ? (
-               <div className="flex items-center justify-center py-24 text-slate-400 text-sm gap-2">
-                 <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                 Loading sequences...
+               <div className="flex items-center justify-center py-24">
+                 <LottieLoader size={180} message="Loading sequences..." />
                </div>
             ) : filtered.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-32 gap-3 text-slate-400">

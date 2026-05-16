@@ -6,8 +6,10 @@ import {
   FileText, ChevronDown, GitBranch, Info
 } from 'lucide-react';
 import { supabase } from '../supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 import config from '../config';
+import LottieLoader from '../components/LottieLoader';
 const API = `${config.API_BASE}`;
 
 const EVENT_TYPES = [
@@ -39,6 +41,7 @@ function Toggle({ checked, onChange }) {
 
 export default function Triggers() {
   const { workspaceId } = useParams();
+  const { authFetch } = useAuth();
 
   const [triggers, setTriggers] = useState([]);
   const [flows, setFlows] = useState([]);
@@ -65,7 +68,7 @@ export default function Triggers() {
   const fetchTriggers = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/triggers?workspace_id=${workspaceId}`);
+      const res = await authFetch(`${API}/triggers?workspace_id=${workspaceId}`);
       const data = await res.json();
       setTriggers(Array.isArray(data) ? data : []);
     } catch (e) { console.error(e); }
@@ -79,7 +82,7 @@ export default function Triggers() {
 
   const fetchLogs = async (triggerId = '') => {
     try {
-      const res = await fetch(`${API}/triggers/${triggerId}/logs?workspace_id=${workspaceId}`);
+      const res = await authFetch(`${API}/triggers/${triggerId}/logs?workspace_id=${workspaceId}`);
       const data = await res.json();
       setLogs(Array.isArray(data) ? data : []);
     } catch (e) { console.error(e); }
@@ -87,7 +90,7 @@ export default function Triggers() {
 
   const handleDelete = async (id = '') => {
     if (!window.confirm('Delete this trigger?')) return;
-    await fetch(`${API}/triggers/${id}?workspace_id=${workspaceId}`, { method: 'DELETE' });
+    await authFetch(`${API}/triggers/${id}?workspace_id=${workspaceId}`, { method: 'DELETE' });
     showToast('Trigger deleted');
     fetchTriggers();
   };
@@ -95,17 +98,15 @@ export default function Triggers() {
   const handleToggle = async (trigger) => {
     // Optimistic update
     setTriggers(ts => ts.map(t => t.id === trigger.id ? { ...t, status: t.status === 'active' ? 'inactive' : 'active' } : t));
-    await fetch(`${API}/triggers/${trigger.id}/toggle`, {
+    await authFetch(`${API}/triggers/${trigger.id}/toggle`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ workspace_id: workspaceId })
     });
   };
 
   const handleFlowLink = async (trigger, flowId) => {
-    await fetch(`${API}/triggers/${trigger.id}`, {
+    await authFetch(`${API}/triggers/${trigger.id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...trigger, workspace_id: workspaceId, flow_id: flowId || null })
     });
     fetchTriggers();
@@ -116,9 +117,8 @@ export default function Triggers() {
     try {
       let payload = {};
       try { payload = JSON.parse(firePayload); } catch { }
-      const res = await fetch(`${API}/triggers/${fireModal.id}/fire`, {
+      const res = await authFetch(`${API}/triggers/${fireModal.id}/fire`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ workspace_id: workspaceId, payload })
       });
       const data = await res.json();
@@ -207,9 +207,8 @@ export default function Triggers() {
           </div>
 
           {loading ? (
-            <div className="flex items-center justify-center py-16 text-slate-400 text-sm gap-2">
-              <div className="w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
-              Loading triggers...
+            <div className="flex items-center justify-center py-16">
+              <LottieLoader size={180} message="Loading triggers..." />
             </div>
           ) : filteredTriggers.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400">
@@ -440,6 +439,7 @@ function TriggerModal({ trigger, flows, workspaceId, onClose, onSaved }) {
     status: trigger?.status || 'active',
     data_mapping: trigger?.data_mapping || [],
   });
+  const { authFetch } = useAuth();
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
 
@@ -463,7 +463,7 @@ function TriggerModal({ trigger, flows, workspaceId, onClose, onSaved }) {
       const body = { ...form, workspace_id: workspaceId, flow_id: form.flow_id || null };
       const url = trigger ? `${API}/triggers/${trigger.id}` : `${API}/triggers`;
       const method = trigger ? 'PUT' : 'POST';
-      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const res = await authFetch(url, { method, body: JSON.stringify(body) });
       const data = await res.json();
       if (data.success) onSaved();
       else alert(data.error || 'Failed to save');

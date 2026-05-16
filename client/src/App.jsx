@@ -22,6 +22,7 @@ import InstagramCallback from './pages/Instagram/InstagramCallback';
 import InstagramDashboard from './pages/Instagram/InstagramDashboard';
 import InstagramAuthRedirect from './pages/Instagram/InstagramAuthRedirect';
 import Ecommerce from './pages/Ecommerce';
+import Billing from './pages/Billing';
 import { WorkspaceProvider } from './contexts/WorkspaceContext';
 
 import WorkspaceLayout from './components/WorkspaceLayout';
@@ -92,6 +93,7 @@ function AppRoutes() {
           <Route path="settings/profile" element={<WorkspaceProfile />} />
           <Route path="settings/members" element={<Members />} />
           <Route path="ecommerce" element={<Ecommerce />} />
+          <Route path="billing" element={<Billing />} />
         </Route>
 
 

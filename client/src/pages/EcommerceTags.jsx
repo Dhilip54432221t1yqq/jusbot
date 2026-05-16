@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import config from '../config';
 import { toast } from 'react-hot-toast';
 import { Search, Plus, Edit3, X } from 'lucide-react';
+import LottieLoader from '../components/LottieLoader';
 
 const API_BASE = `${config.API_BASE}/ecommerce`;
 
@@ -450,7 +451,7 @@ export default function EcommerceTags() {
                     </table>
                 ) : loading ? (
                     <div className="tags-table" style={{ borderRadius: 8 }}>
-                        <div className="tags-empty">Loading tags...</div>
+                        <div className="tags-empty"><LottieLoader size={100} message="Loading tags..." /></div>
                     </div>
                 ) : (
                     <div className="tags-table" style={{ borderRadius: 8 }}>
