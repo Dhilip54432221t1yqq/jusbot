@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   MessageCircle, Search, User, MoreVertical, CheckCheck, Instagram,
-  Send, Paperclip, Smile, Tag, Info
+  Send, Paperclip, Smile, Tag, Info, MessageSquare, Plus, X
 } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../supabase';
@@ -11,6 +11,14 @@ import config from '../config';
 
 const API_BASE_URL = `${config.API_URL}/api/livechat`;
 const SOCKET_URL = config.API_URL;
+
+const getChannelStyles = (type) => {
+  const t = (type || '').toLowerCase();
+  if (t.includes('instagram')) return { icon: Instagram, color: 'bg-pink-100 text-pink-600', badge: 'bg-pink-50 text-pink-600', label: 'Instagram' };
+  if (t.includes('whatsapp')) return { icon: MessageCircle, color: 'bg-green-100 text-green-600', badge: 'bg-green-50 text-green-600', label: 'WhatsApp Cloud' };
+  if (t.includes('messenger')) return { icon: MessageSquare, color: 'bg-blue-100 text-blue-600', badge: 'bg-blue-50 text-blue-600', label: 'Messenger' };
+  return { icon: MessageCircle, color: 'bg-slate-100 text-slate-600', badge: 'bg-slate-50 text-slate-600', label: type || 'Chat' };
+};
 
 export default function LiveChat() {
   const { workspaceId } = useParams();
@@ -26,6 +34,11 @@ export default function LiveChat() {
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState('open');
   const [searchTerm, setSearchTerm] = useState('');
+  
+  const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const [contactsList, setContactsList] = useState([]);
+  const [searchContact, setSearchContact] = useState('');
+  const [isLoadingContacts, setIsLoadingContacts] = useState(false);
   
   /** @type {import('react').MutableRefObject<any>} */
   const socketRef = useRef(null);
@@ -102,10 +115,15 @@ export default function LiveChat() {
   const loadMessages = async (id) => {
     try {
       const response = await authFetch(`${API_BASE_URL}/conversations/${id}/messages`);
-      const data = await response.json();
-      setMessages(data);
+      if (response.ok) {
+        const data = await response.json();
+        setMessages(Array.isArray(data) ? data : []);
+      } else {
+        setMessages([]);
+      }
     } catch (error) {
       console.error('Error loading messages:', error);
+      setMessages([]);
     }
   };
 
@@ -146,12 +164,60 @@ export default function LiveChat() {
     }
   };
 
+  const loadContacts = async () => {
+    setIsLoadingContacts(true);
+    try {
+      const res = await authFetch(`${config.API_URL}/api/contacts?workspace_id=${workspaceId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setContactsList(data.items || []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    setIsLoadingContacts(false);
+  };
+
+  const startNewChat = async (contact) => {
+    try {
+      const res = await authFetch(`${API_BASE_URL}/${workspaceId}/conversations`, {
+        method: 'POST',
+        body: JSON.stringify({ 
+          contactId: contact.id, 
+          channelType: contact.channel || 'whatsapp' 
+        })
+      });
+      if (res.ok) {
+        const conv = await res.json();
+        setActiveConversation(conv);
+        setShowNewChatModal(false);
+        loadConversations();
+      } else {
+        const errorData = await res.json();
+        alert("Failed to start chat: " + (errorData.error || "Unknown error"));
+        console.error("Backend error:", errorData);
+      }
+    } catch (e) {
+      console.error("Network error:", e);
+      alert("Failed to start chat: Network or server error");
+    }
+  };
+
   return (
     <div className="flex-1 flex overflow-hidden bg-white">
       {/* Inbox Panel (Left) */}
       <div className="w-80 bg-white border-r border-slate-200 flex flex-col flex-shrink-0">
         <div className="p-4 border-b border-slate-200">
-          <h2 className="text-xl font-bold mb-4">Inbox</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold">Inbox</h2>
+            <button 
+              onClick={() => { setShowNewChatModal(true); loadContacts(); }}
+              className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors"
+              title="New Chat"
+            >
+              <Plus className="w-5 h-5" />
+            </button>
+          </div>
           <div className="relative mb-4">
             <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
             <input 
@@ -212,12 +278,16 @@ export default function LiveChat() {
                   </div>
                   <p className="text-xs text-slate-500 truncate mb-1">{conv?.last_message || ''}</p>
                   <div className="flex gap-2">
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter flex items-center gap-1 ${
-                      conv?.channel_type === 'instagram' ? 'bg-pink-50 text-pink-600' : 'bg-blue-50 text-blue-600'
-                    }`}>
-                      {conv?.channel_type === 'instagram' && <Instagram className="w-2.5 h-2.5" />}
-                      {conv?.channel_type || 'chat'}
-                    </span>
+                    {(() => {
+                      const style = getChannelStyles(conv?.channel_type);
+                      const Icon = style.icon;
+                      return (
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter flex items-center gap-1 ${style.badge}`}>
+                          <Icon className="w-2.5 h-2.5" />
+                          {style.label}
+                        </span>
+                      );
+                    })()}
                   </div>
                 </div>
               </button>
@@ -256,7 +326,7 @@ export default function LiveChat() {
 
             {/* Message History */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              {messages.map((msg, i) => {
+              {(Array.isArray(messages) ? messages : []).map((msg, i) => {
                 const isAgent = msg.sender_type === 'agent' || msg.sender_type === 'bot';
                 return (
                   <div key={msg.id || i} className={`flex ${isAgent ? 'justify-end' : 'justify-start'}`}>
@@ -364,14 +434,20 @@ export default function LiveChat() {
                 <li className="flex flex-col gap-1">
                   <span className="text-[10px] text-slate-400 font-bold uppercase">Channel</span>
                   <div className="flex items-center gap-2">
-                    <div className={`w-5 h-5 rounded flex items-center justify-center ${
-                      activeConversation?.channel_type === 'instagram' ? 'bg-pink-100 text-pink-600' : 'bg-green-100 text-green-600'
-                    }`}>
-                      {activeConversation?.channel_type === 'instagram' ? <Instagram className="w-3 h-3" /> : <MessageCircle className="w-3 h-3" />}
-                    </div>
-                    <span className="text-sm font-medium text-slate-700 capitalize">
-                      {activeConversation?.channel_type === 'instagram' ? `@${activeConversation?.metadata?.instagram_username || 'instagram'}` : (activeConversation?.channel_type || 'Unknown')}
-                    </span>
+                    {(() => {
+                      const style = getChannelStyles(activeConversation?.channel_type);
+                      const Icon = style.icon;
+                      return (
+                        <>
+                          <div className={`w-5 h-5 rounded flex items-center justify-center ${style.color}`}>
+                            <Icon className="w-3 h-3" />
+                          </div>
+                          <span className="text-sm font-medium text-slate-700 capitalize">
+                            {style.label} {activeConversation?.channel_type === 'instagram' ? `(@${activeConversation?.metadata?.instagram_username || 'instagram'})` : ''}
+                          </span>
+                        </>
+                      );
+                    })()}
                   </div>
                 </li>
               </ul>
@@ -385,6 +461,64 @@ export default function LiveChat() {
                 <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-medium">New User</span>
                 <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-medium">Support</span>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* New Chat Modal */}
+      {showNewChatModal && (
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+            <div className="p-4 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="font-bold text-lg text-slate-800">Start New Chat</h3>
+              <button onClick={() => setShowNewChatModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 border-b border-slate-100 bg-slate-50">
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                <input 
+                  type="text" 
+                  placeholder="Search contacts by name or phone..." 
+                  className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 outline-none"
+                  value={searchContact}
+                  onChange={(e) => setSearchContact(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2">
+              {isLoadingContacts ? (
+                <div className="p-8 text-center text-slate-400 text-sm">Loading contacts...</div>
+              ) : (
+                contactsList
+                  .filter(c => 
+                    (c.name || '').toLowerCase().includes(searchContact.toLowerCase()) || 
+                    (c.phone || '').includes(searchContact)
+                  )
+                  .map(c => (
+                    <button 
+                      key={c.id} 
+                      onClick={() => startNewChat(c)}
+                      className="w-full p-3 flex items-center gap-3 hover:bg-slate-50 rounded-xl transition-colors text-left"
+                    >
+                      <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold flex-shrink-0">
+                        {c.name?.charAt(0) || '?'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-slate-800 text-sm truncate">{c.name || 'Unknown'}</div>
+                        <div className="text-xs text-slate-500">{c.phone || c.email || 'No contact info'}</div>
+                      </div>
+                      <div className="text-[10px] px-2 py-1 bg-slate-100 text-slate-500 rounded font-bold uppercase">
+                        {c.channel || 'chat'}
+                      </div>
+                    </button>
+                  ))
+              )}
+              {!isLoadingContacts && contactsList.length === 0 && (
+                <div className="p-8 text-center text-slate-400 text-sm">No contacts found in this workspace.</div>
+              )}
             </div>
           </div>
         </div>

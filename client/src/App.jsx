@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Toaster } from 'react-hot-toast';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import Analytics from './pages/Analytics';
 import Flows from './pages/Flows';
 import IntegrationsPage from './pages/Integrations';
 import FlowBuilder from './FlowBuilder';
@@ -11,12 +12,21 @@ import LiveChat from './pages/LiveChat';
 import BotUsers from './pages/BotUsers';
 import WhatsAppCloudSetup from './pages/WhatsAppCloudSetup';
 import WhatsAppConnected from './pages/WhatsAppConnected';
+import WhatsAppTemplates from './pages/WhatsAppTemplates';
+import WhatsAppAd from './pages/WhatsAppAd';
+import WhatsAppWidget from './pages/WhatsAppWidget';
+import WhatsAppStore from './pages/WhatsAppStore';
+import WhatsAppCRM from './pages/WhatsAppCRM';
 import Triggers from './pages/Triggers';
 import Keywords from './pages/Keywords';
 import Sequences from './pages/Sequences';
 import SequenceEditor from './pages/SequenceEditor';
+import SettingsLayout from './components/SettingsLayout';
 import WorkspaceProfile from './pages/Settings/WorkspaceProfile';
 import Members from './pages/Settings/Members';
+import AgentGroups from './pages/Settings/AgentGroups';
+import BusinessHours from './pages/Settings/BusinessHours';
+import AutomationLayout from './components/AutomationLayout';
 import InstagramConnect from './pages/Instagram/InstagramConnect';
 import InstagramCallback from './pages/Instagram/InstagramCallback';
 import InstagramDashboard from './pages/Instagram/InstagramDashboard';
@@ -26,6 +36,7 @@ import Billing from './pages/Billing';
 import { WorkspaceProvider } from './contexts/WorkspaceContext';
 
 import WorkspaceLayout from './components/WorkspaceLayout';
+import WhatsAppLayout from './components/WhatsAppLayout';
 import './App.css';
 
 /**
@@ -76,33 +87,48 @@ function AppRoutes() {
           </ProtectedRoute>
         }>
           <Route path="dashboard" element={<Dashboard />} />
-          <Route path="flows" element={<Flows />} />
+          <Route path="analytics" element={<Analytics />} />
           <Route path="integrations" element={<IntegrationsPage />} />
-          <Route path="whatsapp-cloud" element={<WhatsAppCloudSetup />} />
-          <Route path="whatsapp-connected" element={<WhatsAppConnected />} />
-          <Route path="automation/triggers" element={<Triggers />} />
-          <Route path="automation/keywords" element={<Keywords />} />
-          <Route path="automation/sequences" element={<Sequences />} />
-          <Route path="automation/sequences/:id" element={<SequenceEditor />} />
-          <Route path="content" element={<ContentPage />} />
+          <Route element={<WhatsAppLayout />}>
+            <Route path="whatsapp-cloud" element={<WhatsAppCloudSetup />} />
+            <Route path="whatsapp-connected" element={<WhatsAppConnected />} />
+            <Route path="whatsapp/templates" element={<WhatsAppTemplates />} />
+            <Route path="whatsapp/ad" element={<WhatsAppAd />} />
+            <Route path="whatsapp/widget" element={<WhatsAppWidget />} />
+            <Route path="whatsapp/store" element={<WhatsAppStore />} />
+            <Route path="whatsapp/crm" element={<WhatsAppCRM />} />
+            <Route path="whatsapp/contacts" element={<BotUsers />} />
+            
+            
+            {/* Moved Flows, Automation and Content */}
+            <Route path="whatsapp/flows" element={<Flows />} />
+            <Route path="whatsapp/automation" element={<AutomationLayout />}>
+              <Route path="triggers" element={<Triggers />} />
+              <Route path="keywords" element={<Keywords />} />
+              <Route path="sequences" element={<Sequences />} />
+            </Route>
+            <Route path="whatsapp/automation/sequences/:id" element={<SequenceEditor />} />
+            <Route path="whatsapp/content" element={<ContentPage />} />
+            <Route path="flow-builder/:id" element={<FlowBuilder />} />
+          </Route>
           <Route path="livechat" element={<LiveChat />} />
-          <Route path="contacts" element={<BotUsers />} />
           <Route path="instagram" element={<InstagramConnect />} />
           <Route path="instagram-callback" element={<InstagramCallback />} />
           <Route path="instagram-dashboard" element={<InstagramDashboard />} />
-          <Route path="settings/profile" element={<WorkspaceProfile />} />
-          <Route path="settings/members" element={<Members />} />
+          <Route path="settings" element={<SettingsLayout />}>
+            <Route path="profile" element={<WorkspaceProfile />} />
+            <Route path="members" element={<Members />} />
+            <Route path="agents" element={<AgentGroups />} />
+            <Route path="hours" element={<BusinessHours />} />
+          </Route>
+          
           <Route path="ecommerce" element={<Ecommerce />} />
           <Route path="billing" element={<Billing />} />
         </Route>
 
 
         <Route path="/instagram-callback" element={<InstagramAuthRedirect />} />
-        <Route path="/:workspaceId/flow-builder/:id" element={
-          <ProtectedRoute>
-            <FlowBuilder />
-          </ProtectedRoute>
-        } />
+
         
         {/* Fallback for old routes or root access when logged in */}
         <Route path="/dashboard" element={<Navigate to="/" replace />} />

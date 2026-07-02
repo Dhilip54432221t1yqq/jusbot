@@ -41,7 +41,7 @@ router.get('/', async (req, res) => {
 // 2. Update workspace details (Owner/Admin only)
 router.put('/:id', requireWorkspaceAccess(['owner', 'admin']), async (req, res) => {
     const { id } = req.params;
-    const { name, logo_url, timezone, default_theme } = req.body;
+    const { name, logo_url, timezone, default_theme, business_hours } = req.body;
     
     try {
         const { data, error } = await supabase
@@ -50,7 +50,8 @@ router.put('/:id', requireWorkspaceAccess(['owner', 'admin']), async (req, res) 
                 name,
                 logo_url,
                 timezone,
-                default_theme
+                default_theme,
+                business_hours
             })
             .eq('id', id)
             .select()

@@ -1,5 +1,6 @@
 import { supabase } from '../utils/supabase.js';
 import * as sequenceService from './sequenceService.js';
+import { livechatService } from './livechatService.js';
 
 export const flowExecutionService = {
     /**
@@ -58,6 +59,34 @@ export const flowExecutionService = {
                             // Logic to save field value
                         }
                         break;
+
+                    case 'business_hours_reply':
+                        if (action.awayMessage) {
+                            const isWithin = await this.isWithinBusinessHours(workspaceId);
+                            if (!isWithin) {
+                                console.log(`[FlowEngine] Outside business hours. Sending away message to contact ${contactId}`);
+                                // Find open conversation
+                                const { data: conversation } = await supabase
+                                    .from('conversations')
+                                    .select('id')
+                                    .eq('workspace_id', workspaceId)
+                                    .eq('contact_id', contactId)
+                                    .neq('status', 'resolved')
+                                    .order('created_at', { ascending: false })
+                                    .limit(1)
+                                    .single();
+                                
+                                if (conversation) {
+                                    await livechatService.sendMessage(conversation.id, {
+                                        sender_type: 'bot',
+                                        sender_id: null,
+                                        content: action.awayMessage,
+                                        message_type: 'text'
+                                    });
+                                }
+                            }
+                        }
+                        break;
                     
                     default:
                         console.log(`[FlowEngine] Unknown action type: ${action.type}`);
@@ -65,6 +94,99 @@ export const flowExecutionService = {
             } catch (err) {
                 console.error(`[FlowEngine] Action execution failed:`, err.message);
             }
+        }
+    },
+
+    /**
+     * Checks if the workspace's current local time is within its configured business hours.
+     * @param {string} workspaceId
+     * @returns {Promise<boolean>}
+     */
+    async isWithinBusinessHours(workspaceId) {
+        try {
+            const { data: workspace, error } = await supabase
+                .from('workspaces')
+                .select('timezone, business_hours')
+                .eq('id', workspaceId)
+                .single();
+
+            if (error || !workspace) {
+                console.warn(`[BusinessHours] Workspace not found or error loading settings:`, error?.message);
+                return true; // Default to open if not found
+            }
+
+            const timezone = workspace.timezone || 'UTC';
+            const businessHours = workspace.business_hours;
+
+            if (!businessHours) {
+                console.log(`[BusinessHours] No business hours configured for workspace ${workspaceId}. Defaulting to open all day.`);
+                return true; // Default to open if not configured
+            }
+
+            // Get current day and time in workspace's local timezone
+            const now = new Date();
+            const formatter = new Intl.DateTimeFormat('en-US', {
+                timeZone: timezone,
+                weekday: 'long',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+
+            const parts = formatter.formatToParts(now);
+            const weekdayPart = parts.find(p => p.type === 'weekday');
+            const hourPart = parts.find(p => p.type === 'hour');
+            const minutePart = parts.find(p => p.type === 'minute');
+
+            if (!weekdayPart || !hourPart || !minutePart) {
+                console.warn(`[BusinessHours] Failed to format current date for timezone ${timezone}`);
+                return true;
+            }
+
+            const dayName = weekdayPart.value.toLowerCase(); // 'monday', 'tuesday', etc.
+            const currentTime = `${hourPart.value}:${minutePart.value}`; // 'HH:MM'
+            const dayConfig = businessHours[dayName];
+
+            console.log(`[BusinessHours] Checking day: ${dayName}, local time: ${currentTime}, config:`, dayConfig);
+
+            if (!dayConfig) return true; // Default to open if day config missing
+
+            if (dayConfig.type === 'open_all_day') {
+                return true;
+            }
+
+            if (dayConfig.type === 'closed') {
+                return false;
+            }
+
+            if (dayConfig.type === 'open_hours' && dayConfig.hours && dayConfig.hours[0]) {
+                const { start, end } = dayConfig.hours[0];
+                if (start && end) {
+                    return currentTime >= start && currentTime <= end;
+                }
+            }
+
+            if (dayConfig.type === 'two_open_hours' && dayConfig.hours) {
+                const slot1 = dayConfig.hours[0];
+                const slot2 = dayConfig.hours[1];
+                
+                let inSlot1 = false;
+                let inSlot2 = false;
+
+                if (slot1 && slot1.start && slot1.end) {
+                    inSlot1 = currentTime >= slot1.start && currentTime <= slot1.end;
+                }
+                if (slot2 && slot2.start && slot2.end) {
+                    inSlot2 = currentTime >= slot2.start && currentTime <= slot2.end;
+                }
+
+                return inSlot1 || inSlot2;
+            }
+
+            return true; // Fallback
+        } catch (err) {
+            console.error(`[BusinessHours] Error checking business hours:`, err.message);
+            return true; // Default to open on error
         }
     }
 };

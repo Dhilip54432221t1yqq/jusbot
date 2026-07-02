@@ -1,91 +1,56 @@
-import { Handle, Position } from "reactflow";
+import { Handle, Position, useEdges } from "reactflow";
 import { GitBranch } from "lucide-react";
 
-export default function ConditionNode({ data, selected }) {
+export default function ConditionNode({ id, data, selected }) {
   const groups = data.groups || [{ label: "Group 1" }, { label: "Otherwise" }];
+  const edges = useEdges();
+  
+  const isConnected = (handleId) => edges.some(e => e.source === id && e.sourceHandle === handleId);
 
   return (
-    <div
-      className={`w-80 bg-white rounded-2xl flex flex-col group border transition-all shadow-lg shadow-green-100/60 overflow-visible ${
-        selected
-          ? "border-green-500 ring-2 ring-green-500/30"
-          : "border-slate-200 hover:border-green-300"
-      }`}
-    >
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="!w-4 !h-4 !bg-green-600 !border-2 !border-white !rounded-full !ring-2 !ring-green-200 left-[-10px]"
-      />
-
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-green-500 to-green-600 rounded-t-2xl">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-            <GitBranch className="w-5 h-5 text-white" strokeWidth={2.5} />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-white" style={{ fontFamily: "'Poppins', sans-serif" }}>
-              Condition
-            </h3>
-            <p className="text-[10px] text-white/70 uppercase tracking-widest font-bold">
-              Branch Logic
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 bg-white rounded-full" />
-          <span className="text-[10px] font-bold text-white/80 uppercase tracking-wider">IF</span>
-        </div>
+    <div className="relative flex flex-col items-center w-[300px]">
+      
+      {/* Circle Icon */}
+      <div className={`relative w-[110px] h-[110px] bg-[#22c55e] rounded-full flex items-center justify-center mb-1 shadow-sm border-2 border-transparent transition-all ${selected ? 'border-black' : ''}`}>
+        <Handle
+          type="target"
+          position={Position.Left}
+          className="!absolute !left-0 !top-1/2 !-translate-y-1/2 !w-full !h-full !opacity-0 !border-none !bg-transparent !m-0 !transform-none"
+          style={{ left: 0 }}
+        />
+        <GitBranch className="w-12 h-12 text-black" strokeWidth={2} />
       </div>
 
-      {/* Groups */}
-      <div className="p-4 space-y-2 relative">
-        {groups.map((group, i) => {
-          const isOtherwise = i === groups.length - 1;
-          return (
-            <div
-              key={i}
-              className={`relative flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${
-                isOtherwise
-                  ? "bg-slate-50 border-slate-200 border-dashed"
-                  : "bg-green-50 border-green-100"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <div
-                  className={`w-2 h-2 rounded-full ${
-                    isOtherwise ? "bg-slate-300" : "bg-green-500"
-                  }`}
-                />
-                <span
-                  className={`text-xs font-semibold ${
-                    isOtherwise ? "text-slate-500" : "text-green-700"
-                  }`}
-                >
-                  {group.label || (isOtherwise ? "Otherwise" : `Group ${i + 1}`)}
-                </span>
-              </div>
-              <Handle
-                type="source"
-                position={Position.Right}
-                id={`group-${i}`}
-                style={{ top: "auto", right: "-12px", position: "absolute" }}
-                className={`!w-3.5 !h-3.5 !rounded-full !border-2 !border-white !ring-2 ${
-                  isOtherwise
-                    ? "!bg-slate-400 !ring-slate-200"
-                    : "!bg-green-500 !ring-green-200"
-                }`}
-              />
-            </div>
-          );
-        })}
+      {/* Label */}
+      <span className="text-[22px] text-white mb-2 font-medium" style={{ fontFamily: "'Poppins', sans-serif" }}>Condition</span>
 
-        {!data.groups && (
-          <p className="text-[10px] text-slate-400 text-center py-2 font-medium">
-            Click to configure conditions
-          </p>
-        )}
+      {/* White Container */}
+      <div className={`relative w-full bg-white rounded-[24px] p-3 flex flex-col shadow-sm border-2 border-transparent transition-all ${selected ? 'border-[#22c55e]' : ''}`}>
+        <div className="bg-[#fafafa] rounded-[16px] p-5 border border-transparent">
+          <div className="flex flex-col gap-2">
+            {groups.map((group, i) => {
+              const handleId = `group-${i}`;
+              const connected = isConnected(handleId);
+              const isOtherwise = i === groups.length - 1;
+              return (
+                <div key={i} className="relative w-full bg-white rounded-xl py-3 px-4 flex items-center justify-between border border-slate-100 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-2 h-2 rounded-full ${isOtherwise ? 'bg-slate-300' : 'bg-[#22c55e]'}`} />
+                    <span className="text-[13px] font-semibold text-black truncate max-w-[150px]">
+                      {group.label || (isOtherwise ? "Otherwise" : `Group ${i + 1}`)}
+                    </span>
+                  </div>
+                  <Handle
+                    type="source"
+                    position={Position.Right}
+                    id={handleId}
+                    className={`!absolute !-right-2.5 !top-1/2 !-translate-y-1/2 !w-5 !h-5 !border-[2.5px] !border-black !rounded-full !m-0 !transform-none transition-colors ${connected ? '!bg-black' : '!bg-white'}`}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );

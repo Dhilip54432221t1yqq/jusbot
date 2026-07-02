@@ -94,4 +94,11 @@ router.delete('/media/:id', requireWorkspaceAccess(), asyncHandler(async (req, r
     res.sendStatus(204);
 }));
 
+// Test Request webhook executor
+router.post('/test-request', requireWorkspaceAccess(), asyncHandler(async (req, res) => {
+    const { workspace_id } = req.query;
+    const result = await content.testRequest({ ...req.body, workspaceId: workspace_id });
+    res.json(result);
+}));
+
 export default router;

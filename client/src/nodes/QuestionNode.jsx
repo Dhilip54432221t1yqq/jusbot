@@ -1,88 +1,63 @@
-import { Handle, Position } from "reactflow";
-import { HelpCircle } from "lucide-react";
+import { Handle, Position, useEdges } from "reactflow";
 
-export default function QuestionNode({ data, selected }) {
-  const TYPE_LABELS = {
-    text: "Free Text",
-    number: "Number",
-    email: "Email",
-    phone: "Phone",
-    date: "Date",
-    datetime: "Date & Time",
-    choice: "Choice / Buttons",
-    location: "Location",
-    rich_media: "Media Upload",
-    silent: "Silent Input",
-  };
+export default function QuestionNode({ id, data, selected }) {
+  const isConfigured = data.question_type || data.question_text;
+  const edges = useEdges();
+  const connected = edges.some(e => e.source === id && e.sourceHandle === "continue");
 
   return (
-    <div
-      className={`w-80 bg-white rounded-2xl flex flex-col group border transition-all shadow-lg shadow-blue-100/60 overflow-visible ${
-        selected
-          ? "border-blue-500 ring-2 ring-blue-500/30"
-          : "border-slate-200 hover:border-blue-300"
-      }`}
-    >
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="!w-4 !h-4 !bg-blue-600 !border-2 !border-white !rounded-full !ring-2 !ring-blue-200 left-[-10px]"
-      />
-
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-t-2xl">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-            <HelpCircle className="w-5 h-5 text-white" strokeWidth={2.5} />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-white" style={{ fontFamily: "'Poppins', sans-serif" }}>
-              Question
-            </h3>
-            <p className="text-[10px] text-white/70 uppercase tracking-widest font-bold">
-              {data.question_type ? TYPE_LABELS[data.question_type] || data.question_type : "User Input"}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5">
-          {data.question_type ? (
-            <>
-              <span className="w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_6px_rgba(255,255,255,0.8)]" />
-              <span className="text-[10px] font-bold text-white uppercase tracking-wider">ACTIVE</span>
-            </>
-          ) : (
-            <>
-              <span className="w-1.5 h-1.5 bg-white/50 rounded-full" />
-              <span className="text-[10px] font-bold text-white/50 uppercase tracking-wider">DRAFT</span>
-            </>
-          )}
-        </div>
+    <div className="relative flex flex-col items-center w-[300px]">
+      
+      {/* Circle Icon */}
+      <div className={`relative w-[110px] h-[110px] bg-[#5eead4] rounded-full flex items-center justify-center mb-1 shadow-sm border-2 border-transparent transition-all ${selected ? 'border-black' : ''}`}>
+        <Handle
+          type="target"
+          position={Position.Left}
+          className="!absolute !left-0 !top-1/2 !-translate-y-1/2 !w-full !h-full !opacity-0 !border-none !bg-transparent !m-0 !transform-none"
+          style={{ left: 0 }}
+        />
+        <svg width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M19 4H5a2 2 0 0 0-2 2v14l5-4h11a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Z" />
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+          <line x1="12" y1="16.5" x2="12.01" y2="16.5" strokeWidth="3" />
+        </svg>
       </div>
 
-      {/* Body */}
-      <div className="p-4">
-        {data.question_type ? (
-          <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl">
-            <p className="text-sm text-blue-800 whitespace-pre-wrap leading-relaxed">
+      {/* Label */}
+      <span className="text-[22px] text-white mb-2 font-medium" style={{ fontFamily: "'Poppins', sans-serif" }}>Question</span>
+
+      {/* White Container */}
+      <div className={`relative w-full bg-white rounded-[24px] p-3 flex flex-col shadow-md border-2 border-transparent transition-all ${selected ? 'border-[#5eead4]' : ''}`}>
+        
+        {/* Content Area */}
+        {!isConfigured ? (
+          <div className="bg-slate-50 rounded-[16px] py-6 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 transition-colors border border-slate-200">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mb-2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+            <span className="text-slate-800 text-[15px] font-medium mt-1">Click to add question</span>
+          </div>
+        ) : (
+          <div className="bg-slate-50 rounded-[16px] p-5 border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors">
+            <p className="text-slate-800 text-[14px] whitespace-pre-wrap leading-relaxed">
               {data.question_text || `Collect ${data.question_type} input...`}
             </p>
           </div>
-        ) : (
-          <div className="bg-blue-50 border border-dashed border-blue-200 p-5 rounded-xl flex items-center justify-center">
-            <p className="text-xs font-bold text-blue-400 uppercase tracking-wider">
-              Click to set up question
-            </p>
-          </div>
         )}
-      </div>
 
-      <div className="px-4 pb-4 flex justify-end">
-        <Handle
-          type="source"
-          position={Position.Right}
-          id="continue"
-          className="!w-4 !h-4 !bg-blue-600 !border-2 !border-white !rounded-full !ring-2 !ring-blue-200 right-[-10px] !relative"
-        />
+        {/* Continue to Next Step */}
+        <div className="relative w-full flex items-center justify-center pt-4 pb-2">
+          <span className="text-black text-[15px] font-medium tracking-wide pr-4">Continue to Next Step</span>
+          <Handle
+            type="source"
+            position={Position.Right}
+            id="continue"
+            className={`!absolute !right-1 !top-1/2 !translate-y-[calc(-50%+4px)] !w-6 !h-6 !border-[2.5px] !border-black !rounded-full !m-0 !transform-none hover:!bg-black/10 transition-colors ${connected ? '!bg-black' : '!bg-transparent'}`}
+          />
+        </div>
+
       </div>
     </div>
   );

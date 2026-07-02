@@ -5,6 +5,8 @@ import { whatsappCloudService } from '../services/whatsappCloudService.js';
 import { contactsService } from '../services/contactsService.js';
 import { livechatService } from '../services/livechatService.js';
 import { authenticate } from '../middleware/authMiddleware.js';
+import { enqueueWebhook } from '../utils/queue.js';
+import { getIO } from '../services/socketService.js';
 
 const router = express.Router();
 
@@ -257,8 +259,69 @@ router.get('/status/:workspaceId', async (req, res) => {
             phoneNumberId: channel.credentials?.phone_number_id,
             wabaId: channel.credentials?.waba_id,
             apiVersion: channel.credentials?.api_version,
-            lastSyncTime: channel.updated_at
+            lastSyncTime: channel.updated_at,
+            isBotLinked: channel.credentials?.is_bot_linked || false,
+            isOpenBot: channel.credentials?.is_open_bot || false,
+            isAccountActive: channel.is_active
         });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
+// 3.5 Settings Endpoint (Toggle features)
+router.put('/settings', async (req, res) => {
+    try {
+        const { workspaceId, isAccountActive, isBotLinked, isOpenBot } = req.body;
+        
+        if (!workspaceId) {
+            return res.status(400).json({ success: false, error: 'Missing workspaceId' });
+        }
+
+        const { data: channel, error: fetchError } = await supabase
+            .from('channels')
+            .select('*')
+            .eq('workspace_id', workspaceId)
+            .eq('channel_type', 'whatsapp_cloud')
+            .single();
+
+        if (fetchError || !channel) {
+            return res.status(404).json({ success: false, error: 'Channel not found' });
+        }
+
+        const newCredentials = { ...channel.credentials };
+        if (isBotLinked !== undefined) newCredentials.is_bot_linked = isBotLinked;
+        if (isOpenBot !== undefined) newCredentials.is_open_bot = isOpenBot;
+
+        const updateData = { credentials: newCredentials, updated_at: new Date() };
+        if (isAccountActive !== undefined) updateData.is_active = isAccountActive;
+
+        const { error: updateError } = await supabase
+            .from('channels')
+            .update(updateData)
+            .eq('id', channel.id);
+
+        if (updateError) throw updateError;
+
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// 3.6 Disconnect Endpoint
+router.delete('/disconnect/:workspaceId', async (req, res) => {
+    try {
+        const { workspaceId } = req.params;
+        const { error } = await supabase
+            .from('channels')
+            .delete()
+            .eq('workspace_id', workspaceId)
+            .eq('channel_type', 'whatsapp_cloud');
+
+        if (error) throw error;
+        res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -295,7 +358,12 @@ router.get('/webhook', async (req, res) => {
     if (mode === 'subscribe') {
         let isValid = false;
         
-        if (workspaceId) {
+        // 1. Global App-Level Verification (Meta Dashboard)
+        if (!workspaceId && (token === process.env.WEBHOOK_VERIFY_TOKEN || token === 'reflx_webhook_secret_2026' || token === 'reflx_instagram_secret_2026')) {
+            isValid = true;
+        } 
+        // 2. Workspace-Level Verification
+        else if (workspaceId) {
              // Look up connection
              const { data: channel } = await supabase
                 .from('channels')
@@ -324,59 +392,57 @@ router.get('/webhook', async (req, res) => {
 });
 
 
+export const processWhatsAppWebhook = async (body, workspaceId) => {
+  if (body.object === 'whatsapp_business_account' && workspaceId) {
+    for (const entry of body.entry) {
+      for (const change of entry.changes) {
+        if (change.value.messages) {
+          const message = change.value.messages[0];
+          const contact = change.value.contacts[0];
+          const phone = message.from;
+          const text = message.text ? message.text.body : '';
+          
+          const { data: channel } = await supabase
+              .from('channels')
+              .select('id')
+              .eq('workspace_id', workspaceId)
+              .eq('channel_type', 'whatsapp_cloud')
+              .single();
+          
+          if (!channel) continue;
+
+          const result = await handleIncomingMessage('whatsapp_cloud', {
+            externalSenderId: phone,
+            content: text,
+            workspaceId: workspaceId,
+            channelId: channel.id,
+            name: contact.profile.name
+          });
+
+          const io = getIO();
+          io?.to(`conversation:${result.conversation.id}`).emit('new_message', result.message);
+          io?.emit('inbox_update', { workspaceId: workspaceId });
+          
+          console.log("Triggering flowbuilder event 'whatsapp_cloud_incoming' for", phone);
+          await whatsappCloudService.logEvent(workspaceId, channel.id, 'webhook', 'success', 'Received incoming message', { phone, text });
+        }
+      }
+    }
+  }
+};
+
 // 6. Webhook Payload (POST)
 router.post('/webhook', async (req, res) => {
   try {
     const body = req.body;
     const workspaceId = req.query.workspaceId;
     
-    if (body.object === 'whatsapp_business_account' && workspaceId) {
-        
-      for (const entry of body.entry) {
-        for (const change of entry.changes) {
-          if (change.value.messages) {
-            const message = change.value.messages[0];
-            const contact = change.value.contacts[0];
-            const phone = message.from;
-            const text = message.text ? message.text.body : '';
-            
-            // Get channel ID for mapping
-            const { data: channel } = await supabase
-                .from('channels')
-                .select('id')
-                .eq('workspace_id', workspaceId)
-                .eq('channel_type', 'whatsapp_cloud')
-                .single();
-            
-            if (!channel) continue;
-
-            const result = await handleIncomingMessage('whatsapp_cloud', {
-              externalSenderId: phone,
-              content: text,
-              workspaceId: workspaceId,
-              channelId: channel.id,
-              name: contact.profile.name
-            }, req.app.get('io'));
-
-            // Broadcast
-            req.app.get('io')?.to(`conversation:${result.conversation.id}`).emit('new_message', result.message);
-            req.app.get('io')?.emit('inbox_update', { workspaceId: workspaceId });
-            
-            // Trigger flowbuilder event
-            // Note: In real setup, you'd enqueue this or hit a flow engine
-            console.log("Triggering flowbuilder event 'whatsapp_cloud_incoming' for", phone);
-            
-            await whatsappCloudService.logEvent(workspaceId, channel.id, 'webhook', 'success', 'Received incoming message', { phone, text });
-          }
-        }
-      }
-    }
+    // Add to queue and return 200 immediately to WhatsApp
+    await enqueueWebhook('whatsapp_cloud', { body, workspaceId });
+    
     res.sendStatus(200);
   } catch (error) {
-    console.error('WhatsApp Cloud Webhook Error:', error);
-    if (req.query.workspaceId) {
-        await whatsappCloudService.logEvent(req.query.workspaceId, null, 'webhook', 'failed', 'Webhook processing error', { error: error.message });
-    }
+    console.error('WhatsApp Cloud Webhook Enqueue Error:', error);
     res.sendStatus(500);
   }
 });

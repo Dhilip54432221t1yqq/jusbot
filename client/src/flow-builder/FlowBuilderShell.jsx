@@ -18,7 +18,7 @@ export default function FlowBuilderShell() {
   };
 
   return (
-    <div className="flex h-screen w-full bg-[#f8fafc] overflow-hidden text-slate-900 font-sans">
+    <div className="flex h-screen w-full bg-[#f8fafc] overflow-hidden text-slate-900">
       {/* 1. Left Sidebar: Flow & Sub-flow Management */}
       <Sidebar 
         isOpen={isSidebarOpen} 

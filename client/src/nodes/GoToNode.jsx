@@ -1,47 +1,46 @@
 import { Handle, Position } from "reactflow";
-import { CornerDownRight } from "lucide-react";
 
 export default function GoToNode({ data, selected }) {
   return (
-    <div
-      className={`w-64 bg-white rounded-2xl flex flex-col group border transition-all shadow-lg shadow-cyan-100/60 overflow-visible ${
-        selected
-          ? "border-cyan-500 ring-2 ring-cyan-500/30"
-          : "border-slate-200 hover:border-cyan-300"
-      }`}
-    >
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="!w-4 !h-4 !bg-cyan-600 !border-2 !border-white !rounded-full !ring-2 !ring-cyan-200 left-[-10px]"
-      />
-
-      {/* Header */}
-      <div className="flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-cyan-500 to-sky-500 rounded-t-2xl">
-        <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-          <CornerDownRight className="w-5 h-5 text-white" strokeWidth={2.5} />
-        </div>
-        <div>
-          <h3 className="text-sm font-bold text-white" style={{ fontFamily: "'Poppins', sans-serif" }}>
-            Go To
-          </h3>
-          <p className="text-[10px] text-white/70 uppercase tracking-widest font-bold">
-            Jump to Step
-          </p>
-        </div>
+    <div className="relative flex flex-col items-center w-[300px]">
+      
+      {/* Circle Icon */}
+      <div className={`relative w-[110px] h-[110px] bg-[#eaff3b] rounded-full flex items-center justify-center mb-1 shadow-sm border-2 border-transparent transition-all ${selected ? 'border-black' : ''}`}>
+        <Handle
+          type="target"
+          position={Position.Left}
+          className="!absolute !left-0 !top-1/2 !-translate-y-1/2 !w-full !h-full !opacity-0 !border-none !bg-transparent !m-0 !transform-none"
+          style={{ left: 0 }}
+        />
+        <svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M8 12h8" />
+          <path d="M12 8l4 4-4 4" />
+        </svg>
       </div>
 
-      {/* Target */}
-      <div className="p-4">
-        <div className="flex items-center gap-3 px-3 py-3 bg-cyan-50 rounded-xl border border-cyan-100">
-          <CornerDownRight className="w-4 h-4 text-cyan-500 flex-shrink-0" />
-          <span className="text-xs font-semibold text-cyan-700 truncate">
-            {data.targetLabel || "Select target step..."}
-          </span>
+      {/* Label */}
+      <span className="text-[22px] text-white mb-2 font-medium" style={{ fontFamily: "'Poppins', sans-serif" }}>Go To</span>
+
+      {/* Lime Container */}
+      <div className={`relative w-full bg-[#eaff3b] rounded-[24px] p-3 flex flex-col shadow-sm border-2 border-transparent transition-all ${selected ? 'border-black' : ''}`}>
+
+        {/* Inner White Content Area */}
+        <div className="bg-white rounded-[16px] p-5 flex flex-col items-center justify-center min-h-[90px] shadow-sm">
+          {data.targetLabel ? (
+            <div className="flex flex-col items-center text-center">
+              <span className="text-[14px] font-bold text-black max-w-[200px] truncate">
+                {data.targetLabel}
+              </span>
+              <p className="text-[11px] text-slate-500 mt-1 font-medium">
+                Invisible jump
+              </p>
+            </div>
+          ) : (
+            <span className="text-slate-400 text-[14px] font-medium">Select target step...</span>
+          )}
         </div>
-        <p className="text-[10px] text-slate-400 mt-2 text-center font-medium">
-          No connector drawn — invisible jump
-        </p>
+
       </div>
     </div>
   );

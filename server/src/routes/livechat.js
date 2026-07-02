@@ -28,6 +28,18 @@ router.get('/conversations/:id', requireResourceOwnership('id', 'conversations')
   }
 });
 
+// Find or create conversation for a contact
+router.post('/:workspaceId/conversations', requireWorkspaceAccess(), async (req, res) => {
+  try {
+    const { workspaceId } = req.params;
+    const { contactId, channelType } = req.body;
+    const conversation = await livechatService.findOrCreateConversation(workspaceId, contactId, channelType);
+    res.json(conversation);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Update conversation status
 router.patch('/conversations/:id/status', requireResourceOwnership('id', 'conversations'), async (req, res) => {
   try {

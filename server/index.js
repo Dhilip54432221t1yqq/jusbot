@@ -1,4 +1,18 @@
 import './src/config/env.js';
+import * as Sentry from '@sentry/node';
+import { nodeProfilingIntegration } from '@sentry/profiling-node';
+
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    integrations: [
+      nodeProfilingIntegration(),
+    ],
+    tracesSampleRate: 1.0,
+    profilesSampleRate: 1.0,
+  });
+}
+
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -25,6 +39,7 @@ import { checkAndFireSequences } from './src/services/sequenceService.js';
 import whatsappCloudRouter from './src/routes/whatsappCloud.js';
 import workspacesRouter from './src/routes/workspaces.js';
 import ecommerceRouter from './src/routes/ecommerce.js';
+import agentGroupsRouter from './src/routes/agentGroups.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -50,7 +65,7 @@ const allowedOrigins = [
   'http://51.20.131.117',        // Production (Legacy)
   'https://51.20.131.117',
   'https://jusbot-9fv7zs24z-dhilips-projects-5fe2be83.vercel.app', // Corrected Vercel URL
-  'https://jusbot.vercel.app', 
+  'https://jusbot.vercel.app',
 ];
 
 app.use(cors({
@@ -101,12 +116,17 @@ app.use('/api/automation', authenticate, automationRouter);
 app.use('/api/sequences', authenticate, sequencesRouter);
 app.use('/api/workspaces', authenticate, workspacesRouter);
 app.use('/api/ecommerce', authenticate, ecommerceRouter);
+app.use('/api/agent-groups', authenticate, agentGroupsRouter);
 
 
 // Start Sequence Worker (Check every 60 seconds)
 setInterval(() => {
   checkAndFireSequences();
 }, 60 * 1000);
+
+if (process.env.SENTRY_DSN) {
+  Sentry.setupExpressErrorHandler(app);
+}
 
 app.get("/", (req, res) => {
   res.json({ status: "Reflx backend running 🚀" });

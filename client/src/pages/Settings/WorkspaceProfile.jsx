@@ -132,9 +132,9 @@ export default function WorkspaceProfile() {
     };
 
     return (
-        <div className="p-8 max-w-4xl mx-auto">
+        <div className="p-8 max-w-5xl">
             <div className="mb-8">
-                <h1 className="text-2xl font-bold text-slate-800" style={{ fontFamily: "'Sora', sans-serif", letterSpacing: '-0.02em' }}>
+                <h1 className="text-2xl font-bold text-slate-800" style={{ fontFamily: "'Poppins', sans-serif", letterSpacing: '-0.02em' }}>
                     Workspace Profile
                 </h1>
                 <p className="text-slate-500 text-sm mt-1">Manage your workspace branding and general settings.</p>

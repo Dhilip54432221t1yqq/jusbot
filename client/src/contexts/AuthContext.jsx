@@ -2,7 +2,18 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 
-const AuthContext = createContext(null);
+/**
+ * @typedef {Object} AuthContextType
+ * @property {any} user
+ * @property {any} session
+ * @property {boolean} loading
+ * @property {() => Promise<Record<string, string>>} getAuthHeaders
+ * @property {(url: string, options?: RequestInit) => Promise<Response>} authFetch
+ * @property {() => Promise<void>} signOut
+ */
+
+/** @type {import('react').Context<AuthContextType | null>} */
+const AuthContext = createContext(/** @type {AuthContextType | null} */ (null));
 
 export const useAuth = () => {
     const context = useContext(AuthContext);
@@ -12,9 +23,12 @@ export const useAuth = () => {
     return context;
 };
 
+/**
+ * @param {{ children: import('react').ReactNode }} props
+ */
 export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
-    const [session, setSession] = useState(null);
+    const [user, setUser] = useState(/** @type {any} */ (null));
+    const [session, setSession] = useState(/** @type {any} */ (null));
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
@@ -88,13 +102,14 @@ export const AuthProvider = ({ children }) => {
      * Makes an authenticated fetch call.
      * Automatically includes the JWT token in the Authorization header.
      */
-    const authFetch = useCallback(async (url, options = {}) => {
+    const authFetch = useCallback(async (/** @type {string} */ url, /** @type {RequestInit} */ options = {}) => {
         const headers = await getAuthHeaders();
+        const requestHeaders = options.headers ? options.headers : {};
         const response = await fetch(url, {
             ...options,
             headers: {
                 ...headers,
-                ...options.headers
+                ...requestHeaders
             }
         });
 

@@ -75,7 +75,7 @@ export default function FlowCanvas({ onNodeSelect, selectedNodeId }) {
   }), []);
 
   return (
-    <div className="w-full h-full bg-[#f8fbff]">
+    <div className="w-full h-full" style={{ backgroundColor: '#2e2c2c' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -92,7 +92,7 @@ export default function FlowCanvas({ onNodeSelect, selectedNodeId }) {
           variant={BackgroundVariant.Dots} 
           gap={24} 
            size={1} 
-           color="#e2e8f0" 
+           color="#444141" 
         />
         <Controls 
           className="bg-white border-slate-200 shadow-xl rounded-xl overflow-hidden" 

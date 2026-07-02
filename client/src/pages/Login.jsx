@@ -25,10 +25,6 @@ export default function LoginPage() {
     const [loggedInUser, setLoggedInUser] = useState(null);
 
     useEffect(() => {
-        const link = document.createElement("link");
-        link.href = "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sora:wght@600;700;800&display=swap";
-        link.rel = "stylesheet";
-        document.head.appendChild(link);
         setTimeout(() => setMounted(true), 100);
 
         // Check for existing session and redirect if logged in
@@ -230,7 +226,7 @@ export default function LoginPage() {
 
     return (
         <div style={{
-            fontFamily: "'Inter', sans-serif",
+            fontFamily: "'Poppins', sans-serif",
             minHeight: "100vh",
             display: "flex",
             alignItems: "center",
@@ -281,7 +277,7 @@ export default function LoginPage() {
                     <div>
                         <div style={{ display: "flex", alignItems: "center", marginBottom: 48 }}>
                             <img 
-                                src="https://cjlngemrulrgmlhixjbs.supabase.co/storage/v1/object/public/brand-assets/jusbot_logo.jpg" 
+                                src="https://cjlngemrulrgmlhixjbs.supabase.co/storage/v1/object/public/brand-assets/Jusbot-Default%20Asset/jusbot_logo.jpg" 
                                 alt="JusBot" 
                                 style={{
                                     height: 48,
@@ -294,7 +290,7 @@ export default function LoginPage() {
 
                         {/* Headline */}
                         <h2 style={{
-                            fontFamily: "'Sora', sans-serif",
+                            fontFamily: "'Poppins', sans-serif",
                             fontWeight: 700, fontSize: 28,
                             color: "#fff", letterSpacing: "-0.03em",
                             lineHeight: 1.25, margin: "0 0 14px",
@@ -340,7 +336,7 @@ export default function LoginPage() {
                         {/* Header */}
                         <div style={{ marginBottom: 32 }}>
                             <h3 style={{
-                                fontFamily: "'Sora', sans-serif",
+                                fontFamily: "'Poppins', sans-serif",
                                 fontWeight: 700, fontSize: 26,
                                 color: "#111", margin: "0 0 8px",
                                 letterSpacing: "-0.03em",
@@ -387,7 +383,7 @@ export default function LoginPage() {
                                         borderRadius: 10, fontSize: 14, color: "#111",
                                         outline: "none", boxSizing: "border-box",
                                         transition: "border-color 0.2s",
-                                        fontFamily: "'Inter', sans-serif",
+                                        fontFamily: "'Poppins', sans-serif",
                                         background: showWorkspaceInput ? "#f9fafb" : "#fff",
                                         cursor: showWorkspaceInput ? "not-allowed" : "text",
                                     }}
@@ -423,7 +419,7 @@ export default function LoginPage() {
                                         borderRadius: 10, fontSize: 14, color: "#111",
                                         outline: "none", boxSizing: "border-box",
                                         transition: "border-color 0.2s",
-                                        fontFamily: "'Inter', sans-serif",
+                                        fontFamily: "'Poppins', sans-serif",
                                         background: showWorkspaceInput ? "#f9fafb" : "#fff",
                                         cursor: showWorkspaceInput ? "not-allowed" : "password",
                                     }}
@@ -461,7 +457,7 @@ export default function LoginPage() {
                                         border: "1.5px solid #22c55e", 
                                         borderRadius: 10, fontSize: 14, color: "#111",
                                         outline: "none", boxSizing: "border-box",
-                                        fontFamily: "'Inter', sans-serif",
+                                        fontFamily: "'Poppins', sans-serif",
                                         background: "#fff",
                                     }}
                                 />
@@ -515,7 +511,7 @@ export default function LoginPage() {
                                 display: "flex", alignItems: "center",
                                 justifyContent: "center", gap: 8,
                                 transition: "background 0.2s",
-                                fontFamily: "'Sora', sans-serif",
+                                fontFamily: "'Poppins', sans-serif",
                                 letterSpacing: "-0.01em",
                             }}
                         >
@@ -595,7 +591,7 @@ export default function LoginPage() {
                         boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
                     }}>
                         <h4 style={{
-                            fontFamily: "'Sora', sans-serif",
+                            fontFamily: "'Poppins', sans-serif",
                             fontWeight: 700, fontSize: 20,
                             color: "#111", margin: "0 0 8px",
                         }}>Reset your password</h4>
@@ -630,7 +626,7 @@ export default function LoginPage() {
                                         borderRadius: 10, fontSize: 14, color: "#111",
                                         outline: "none", boxSizing: "border-box",
                                         marginBottom: 16,
-                                        fontFamily: "'Inter', sans-serif",
+                                        fontFamily: "'Poppins', sans-serif",
                                     }}
                                 />
                                 <button
@@ -642,7 +638,7 @@ export default function LoginPage() {
                                         border: "none", borderRadius: 10,
                                         color: "#fff", fontSize: 14, fontWeight: 700,
                                         cursor: forgotLoading ? "not-allowed" : "pointer",
-                                        fontFamily: "'Sora', sans-serif",
+                                        fontFamily: "'Poppins', sans-serif",
                                         marginBottom: 12,
                                     }}
                                 >
@@ -657,7 +653,7 @@ export default function LoginPage() {
                                 background: "transparent", border: "1px solid #e5e7eb",
                                 borderRadius: 10, fontSize: 13, fontWeight: 600,
                                 color: "#666", cursor: "pointer",
-                                fontFamily: "'Inter', sans-serif",
+                                fontFamily: "'Poppins', sans-serif",
                             }}
                         >
                             Back to Sign In

@@ -10,7 +10,7 @@ export default function Header() {
                 <div className="flex items-center h-full">
                     <div className="flex items-center h-full" style={{ minWidth: 140 }}>
                         <img 
-                            src="https://cjlngemrulrgmlhixjbs.supabase.co/storage/v1/object/public/brand-assets/jusbot_logo.jpg" 
+                            src="https://cjlngemrulrgmlhixjbs.supabase.co/storage/v1/object/public/brand-assets/Jusbot-Default%20Asset/jusbot_logo.jpg" 
                             alt="JusBot" 
                             style={{
                                 height: 46,

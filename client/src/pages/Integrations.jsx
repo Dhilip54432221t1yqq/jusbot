@@ -86,10 +86,7 @@ const integrations = [
         bg: "#eff6ff",
         border: "#bfdbfe",
         logo: (
-            <svg viewBox="0 0 48 48" width="28" height="28">
-                <rect width="48" height="48" rx="10" fill="#2D8CFF" />
-                <path fill="#fff" d="M14 34 22 14h7l-3 8h5l-12 12Zm7-12 2-5h4l-2 5Z" />
-            </svg>
+            <img src="https://cjlngemrulrgmlhixjbs.supabase.co/storage/v1/object/public/brand-assets/Jusbot-Default%20Asset/Razor%20Pay%20Logo%20.png" alt="Razorpay" style={{ width: 40, height: 40, objectFit: 'contain' }} />
         ),
     },
     {
@@ -116,11 +113,7 @@ const integrations = [
         bg: "#f7fee7",
         border: "#d9f99d",
         logo: (
-            <svg viewBox="0 0 48 48" width="28" height="28">
-                <path fill="#96BF48" d="M33.5 10.5s-.2-.1-.5-.1c-.3 0-3.8-.3-3.8-.3s-2.5-2.5-2.8-2.8c-.3-.3-.8-.2-.8-.2L24 8.5C23 8.2 21 7.5 19 8c-1.2.3-2.3 1.2-2.9 2.4-.6 1.2-.8 2.8-.8 4.4l-3.8 1.2S8 17.3 8 17.5L6 42l24 4 13-3.2L33.5 10.5Zm-7.3-2c-1 .3-2.1.9-3 1.9.8 0 1.7.3 2.4.8l.6-2.7Zm-1.5 4.2c-.9-.6-2-.9-3-.8.1-1.1.4-2 .9-2.7 1.1.2 2 1.2 2.1 3.5Zm2.3-4c1.4.5 2.3 1.9 2.6 4.2l-5.2 1.6c.4-3.5 1.5-5.4 2.6-5.8Z" />
-                <path fill="#5E8E3E" d="M33 10.4c-.3 0-.5.1-.5.1L27 42l12.5-3L33 10.4Z" />
-                <path fill="#fff" d="M24.5 19.5l-1.5 4.5s-1.4-.7-3-.7c-2.4 0-2.5 1.5-2.5 1.9 0 2 5.3 2.8 5.3 7.5 0 3.7-2.4 6.1-5.6 6.1-3.8 0-5.7-2.4-5.7-2.4l1-3.3s2 1.7 3.7 1.7c1.1 0 1.6-.9 1.6-1.5 0-2.6-4.3-2.7-4.3-7 0-3.6 2.6-7 7.7-7 2 0 3.3.6 3.3.6Z" />
-            </svg>
+            <img src="https://cjlngemrulrgmlhixjbs.supabase.co/storage/v1/object/public/brand-assets/Jusbot-Default%20Asset/Shopify%20Logo.png" alt="Shopify" style={{ width: 40, height: 40, objectFit: 'contain' }} />
         ),
     },
     {
@@ -132,11 +125,7 @@ const integrations = [
         bg: "#faf5ff",
         border: "#e9d5ff",
         logo: (
-            <svg viewBox="0 0 48 48" width="28" height="28">
-                <rect width="48" height="48" rx="10" fill="#7F54B3" />
-                <path fill="#fff" d="M6 15a3 3 0 0 1 3-3h30a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H27l-3 6-3-6H9a3 3 0 0 1-3-3V15Z" />
-                <path fill="#7F54B3" d="M11 18c0-.6.4-1 1-1s1 .4 1 1l1 7 3-5.5c.2-.4.5-.6.9-.6s.7.2.9.6l1.5 3 .8-1.8c.3-.6 1.2-.4 1.3.3l1 5h-14l1.6-9Zm16.5 5c0-2.5 2-4.5 4.5-4.5S36.5 20.5 36.5 23s-2 4.5-4.5 4.5-4.5-2-4.5-4.5Zm2 0c0 1.4 1.1 2.5 2.5 2.5s2.5-1.1 2.5-2.5-1.1-2.5-2.5-2.5-2.5 1.1-2.5 2.5Z" />
-            </svg>
+            <img src="https://cjlngemrulrgmlhixjbs.supabase.co/storage/v1/object/public/brand-assets/Jusbot-Default%20Asset/Woo%20commerce%20logo.png" alt="WooCommerce" style={{ width: 40, height: 40, objectFit: 'contain' }} />
         ),
     },
 ];
@@ -235,7 +224,12 @@ export default function IntegrationsPage() {
         }
 
         if (id === 'instagram') {
-            setShowInstagramModal(true);
+            const isIgConnected = localStorage.getItem(`reflx_instagram_connected_${workspaceId}`) === 'true';
+            if (isIgConnected) {
+                navigate(`/${workspaceId}/instagram-dashboard`);
+            } else {
+                navigate(`/${workspaceId}/instagram`);
+            }
             return;
         }
 
@@ -272,7 +266,7 @@ export default function IntegrationsPage() {
         <>
             <div className="p-8">
                 <div className="mb-8">
-                    <h2 className="text-2xl font-bold text-slate-800" style={{ fontFamily: "'Sora',sans-serif", letterSpacing: "-0.03em" }}>
+                    <h2 className="text-2xl font-bold text-slate-800" style={{ fontFamily: "'Poppins',sans-serif", letterSpacing: "-0.03em" }}>
                         Integrations
                     </h2>
                     <p className="text-sm text-slate-400 mt-0.5">Connect your favourite tools to supercharge your {activeWorkspace?.name || 'JusBot'} flows</p>
@@ -331,7 +325,7 @@ export default function IntegrationsPage() {
                                     {/* Name + Category */}
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2.5">
-                                            <h3 className="font-bold text-slate-800 text-[15px]" style={{ fontFamily: "'Sora',sans-serif", letterSpacing: "-0.02em" }}>
+                                            <h3 className="font-bold text-slate-800 text-[15px]" style={{ fontFamily: "'Poppins',sans-serif", letterSpacing: "-0.02em" }}>
                                                 {item.name}
                                             </h3>
                                             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md"

@@ -6,7 +6,7 @@ export const livechatService = {
   async getConversations(workspaceId, filters = {}) {
     let query = supabase
       .from('conversations')
-      .select('*, contacts(*), agents(display_name, avatar_url)')
+      .select('*, contacts(*)')
       .eq('workspace_id', workspaceId)
       .order('last_message_at', { ascending: false });
 
@@ -26,12 +26,42 @@ export const livechatService = {
   async getConversationById(conversationId) {
     const { data, error } = await supabase
       .from('conversations')
-      .select('*, contacts(*), agents(display_name, avatar_url)')
+      .select('*, contacts(*)')
       .eq('id', conversationId)
       .single();
     
     if (error) throw error;
     return data;
+  },
+
+  async findOrCreateConversation(workspaceId, contactId, channelType = 'whatsapp') {
+    const { data: existing, error: findError } = await supabase
+      .from('conversations')
+      .select('*, contacts(*)')
+      .eq('workspace_id', workspaceId)
+      .eq('contact_id', contactId)
+      .order('updated_at', { ascending: false })
+      .limit(1);
+    
+    if (!findError && existing && existing.length > 0) {
+      return existing[0];
+    }
+    
+    const { data: newConv, error: createError } = await supabase
+      .from('conversations')
+      .insert([{
+        workspace_id: workspaceId,
+        contact_id: contactId,
+        channel_type: channelType,
+        status: 'open',
+        last_message: '',
+        last_message_at: new Date()
+      }])
+      .select('*, contacts(*)')
+      .single();
+      
+    if (createError) throw createError;
+    return newConv;
   },
 
   async updateConversationStatus(conversationId, status) {

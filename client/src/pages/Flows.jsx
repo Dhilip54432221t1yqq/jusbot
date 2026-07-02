@@ -6,8 +6,61 @@ import {
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../supabase";
 import { useWorkspace } from "../contexts/WorkspaceContext";
+import ReactFlow, { Background, MarkerType } from 'reactflow';
+import 'reactflow/dist/style.css';
+import StartNode from '../nodes/StartNode';
+import MessageNode from '../nodes/MessageNode';
+import ActionNode from '../nodes/ActionNode';
+import ConditionNode from '../nodes/ConditionNode';
+import SplitNode from '../nodes/SplitNode';
+import SendEmailNode from '../nodes/SendEmailNode';
+import GoToNode from '../nodes/GoToNode';
+import QuestionNode from '../nodes/QuestionNode';
+import CommentNode from '../nodes/CommentNode';
 
-const FlowPreview = ({ type }) => {
+const nodeTypes = {
+  start: StartNode,
+  message: MessageNode,
+  action: ActionNode,
+  condition: ConditionNode,
+  split: SplitNode,
+  send_email: SendEmailNode,
+  go_to: GoToNode,
+  question: QuestionNode,
+  comment: CommentNode,
+};
+
+const FlowPreview = ({ type, flowData }) => {
+    if (flowData && flowData.nodes && flowData.nodes.length > 0) {
+        const defaultEdgeOptions = {
+            type: 'default', animated: false,
+            style: { strokeWidth: 4.5, stroke: '#ffffff' },
+            markerEnd: { type: MarkerType.ArrowClosed, color: '#ffffff' },
+        };
+        const previewNodes = flowData.nodes.map(n => ({ ...n, draggable: false, selectable: false }));
+        return (
+            <div className="w-full h-full pointer-events-none" style={{ backgroundColor: '#2e2c2c' }}>
+                <ReactFlow
+                    nodes={previewNodes}
+                    edges={flowData.edges || []}
+                    nodeTypes={nodeTypes}
+                    fitView
+                    fitViewOptions={{ padding: 0.1, maxZoom: 0.3 }}
+                    panOnDrag={false}
+                    zoomOnScroll={false}
+                    zoomOnPinch={false}
+                    zoomOnDoubleClick={false}
+                    elementsSelectable={false}
+                    nodesConnectable={false}
+                    nodesDraggable={false}
+                    defaultEdgeOptions={defaultEdgeOptions}
+                >
+                    <Background color="#444141" gap={24} size={1} />
+                </ReactFlow>
+            </div>
+        );
+    }
+
     const styles = {
         main: (
             <svg viewBox="0 0 200 100" className="w-full h-full">
@@ -177,9 +230,9 @@ export default function FlowsPage() {
         <div className="p-8">
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-2">
-                    <button onClick={() => setActiveFolder(null)} className={`text-2xl font-bold ${activeFolder ? 'text-slate-400 hover:text-slate-600' : 'text-slate-800'}`} style={{ fontFamily: "'Sora', sans-serif" }}>Sub Flows</button>
+                    <button onClick={() => setActiveFolder(null)} className={`text-2xl font-bold ${activeFolder ? 'text-slate-400 hover:text-slate-600' : 'text-slate-800'}`} style={{ fontFamily: "'Poppins', sans-serif" }}>Sub Flows</button>
                     {activeFolder && (
-                        <><span className="text-2xl text-slate-300">/</span><h2 className="text-2xl font-bold text-slate-800" style={{ fontFamily: "'Sora', sans-serif" }}>{activeFolder.name}</h2></>
+                        <><span className="text-2xl text-slate-300">/</span><h2 className="text-2xl font-bold text-slate-800" style={{ fontFamily: "'Poppins', sans-serif" }}>{activeFolder.name}</h2></>
                     )}
                 </div>
                 <div className="flex items-center gap-3">
@@ -216,7 +269,7 @@ export default function FlowsPage() {
             <div className={`grid ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-3 lg:grid-cols-4' : 'grid-cols-1'} gap-6`}>
                 {filtered.map(flow => (
                     <div key={flow.id} onClick={() => navigate(`/${workspaceId}/flow-builder/${flow.id}`)} className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-xl hover:border-green-400 transition-all cursor-pointer group">
-                        <div className="h-40 bg-slate-800 relative"><FlowPreview type={flow.preview} /></div>
+                        <div className="h-40 bg-slate-800 relative"><FlowPreview type={flow.preview} flowData={flow.flow_data} /></div>
                         <div className="p-4 flex items-center justify-between">
                             <span className="font-bold text-slate-800 text-sm truncate">{flow.name}</span>
                             <button onClick={e => { e.stopPropagation(); setOpenMenu(openMenu === flow.id ? null : flow.id); }} className="p-1 hover:bg-slate-100 rounded-lg"><MoreVertical className="w-4 h-4 text-slate-400" /></button>

@@ -1,5 +1,6 @@
 
 import { supabase } from '../utils/supabase.js';
+import axios from 'axios';
 
 // Unified Fields (User, Bot, System)
 export const listFields = async (workspaceId, scope = null) => {
@@ -161,4 +162,186 @@ export const deleteMedia = async (id, workspaceId) => {
         .eq('workspace_id', workspaceId);
     if (error) throw error;
     return true;
+};
+
+export const testRequest = async ({
+    method = 'GET',
+    url = '',
+    headers = [],
+    params = [],
+    bodyType = 'none',
+    bodyRaw = '',
+    bodyParams = [],
+    authType = 'none',
+    authBasicUsername = '',
+    authBasicPassword = '',
+    authBasicUsernameTest = '',
+    authBasicPasswordTest = '',
+    authBearerToken = '',
+    authBearerTokenTest = '',
+    authDigestUsername = '',
+    authDigestPassword = '',
+    authDigestUsernameTest = '',
+    authDigestPasswordTest = '',
+    workspaceId = null
+}) => {
+    // 1. Build variable substitution mappings
+    const mappings = {};
+    const collectMappings = (list) => {
+        if (Array.isArray(list)) {
+            list.forEach(item => {
+                if (item.value) {
+                    const match = item.value.match(/\{\{\s*(.*?)\s*\}\}/);
+                    if (match && match[1]) {
+                        mappings[match[1]] = item.testValue !== undefined && item.testValue !== '' ? item.testValue : item.value;
+                    }
+                }
+            });
+        }
+    };
+    collectMappings(params);
+    collectMappings(headers);
+    collectMappings(bodyParams);
+
+    // Fetch workspace fields from database to use as fallbacks for variables if workspaceId is provided
+    if (workspaceId) {
+        try {
+            const { data: dbFields } = await supabase
+                .from('fields')
+                .select('field_name, default_value')
+                .eq('workspace_id', workspaceId);
+            if (dbFields) {
+                dbFields.forEach(f => {
+                    if (f.field_name && !(f.field_name in mappings)) {
+                        mappings[f.field_name] = f.default_value !== null && f.default_value !== undefined && f.default_value !== '' ? f.default_value : `[${f.field_name}]`;
+                    }
+                });
+            }
+        } catch (e) {
+            console.error("Error fetching fallback fields for test request:", e);
+        }
+    }
+
+    const sub = (text) => {
+        if (typeof text !== 'string') return text;
+        let result = text;
+        for (const key in mappings) {
+            const pattern = new RegExp(`\\{\\{\\s*${escapeRegExp(key)}\\s*\\}\\}`, 'gi');
+            result = result.replace(pattern, mappings[key]);
+        }
+        // Fallback for remaining unmapped placeholders
+        result = result.replace(/\{\{\s*(.*?)\s*\}\}/g, (match, g1) => {
+            const trimmed = g1.trim();
+            return mappings[trimmed] !== undefined ? mappings[trimmed] : `[${trimmed}]`;
+        });
+        return result;
+    };
+
+    function escapeRegExp(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    // 2. Resolve URL
+    let resolvedUrl = sub(url);
+    if (resolvedUrl && !resolvedUrl.startsWith('http://') && !resolvedUrl.startsWith('https://')) {
+        resolvedUrl = 'http://' + resolvedUrl;
+    }
+
+    // 3. Resolve URL query parameters
+    const queryParams = {};
+    if (Array.isArray(params)) {
+        params.forEach(p => {
+            if (p.key) {
+                queryParams[p.key] = sub(p.value);
+            }
+        });
+    }
+
+    // 4. Resolve headers
+    const reqHeaders = {
+        'User-Agent': 'Reflx-Dynamic-Tester/1.0'
+    };
+    if (Array.isArray(headers)) {
+        headers.forEach(h => {
+            if (h.key) {
+                reqHeaders[h.key] = sub(h.value);
+            }
+        });
+    }
+
+    // 5. Resolve Auth
+    let axiosAuth = null;
+    if (authType === 'basic') {
+        const u = authBasicUsernameTest || authBasicUsername;
+        const p = authBasicPasswordTest || authBasicPassword;
+        axiosAuth = { username: sub(u), password: sub(p) };
+    } else if (authType === 'digest') {
+        const u = authDigestUsernameTest || authDigestUsername;
+        const p = authDigestPasswordTest || authDigestPassword;
+        const authString = 'Digest username="' + sub(u) + '", password="' + sub(p) + '"';
+        reqHeaders['Authorization'] = authString;
+    } else if (authType === 'bearer') {
+        const token = authBearerTokenTest || authBearerToken;
+        reqHeaders['Authorization'] = `Bearer ${sub(token)}`;
+    }
+
+    // 6. Resolve Body
+    let reqData = null;
+    if (bodyType === 'raw' && bodyRaw) {
+        reqData = sub(bodyRaw);
+        const isJson = Object.keys(reqHeaders).some(k => k.toLowerCase() === 'content-type' && reqHeaders[k].includes('json'));
+        if (isJson) {
+            try {
+                reqData = JSON.parse(reqData);
+            } catch (e) {
+                // Keep raw string
+            }
+        }
+    } else if (bodyType === 'urlencoded' && Array.isArray(bodyParams)) {
+        const urlParams = new URLSearchParams();
+        bodyParams.forEach(bp => {
+            if (bp.key) urlParams.append(bp.key, sub(bp.value));
+        });
+        reqData = urlParams.toString();
+        reqHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
+    } else if (bodyType === 'multipart' && Array.isArray(bodyParams)) {
+        const formData = {};
+        bodyParams.forEach(bp => {
+            if (bp.key) formData[bp.key] = sub(bp.value);
+        });
+        reqData = formData;
+        reqHeaders['Content-Type'] = 'application/json';
+    }
+
+    // 7. Execute request
+    const startTime = Date.now();
+    try {
+        const response = await axios({
+            method: method.toUpperCase(),
+            url: resolvedUrl,
+            params: queryParams,
+            headers: reqHeaders,
+            data: reqData,
+            auth: axiosAuth,
+            timeout: 8000,
+            validateStatus: () => true
+        });
+
+        const duration = Date.now() - startTime;
+        return {
+            success: true,
+            status: response.status,
+            statusText: response.statusText,
+            timeMs: duration,
+            headers: response.headers,
+            body: response.data
+        };
+    } catch (err) {
+        const duration = Date.now() - startTime;
+        return {
+            success: false,
+            error: err.message,
+            timeMs: duration
+        };
+    }
 };
