@@ -66,6 +66,7 @@ const allowedOrigins = [
   'https://51.20.131.117',
   'https://jusbot-9fv7zs24z-dhilips-projects-5fe2be83.vercel.app', // Corrected Vercel URL
   'https://jusbot.vercel.app',
+  'https://chatbot.jusbot.in',   // Production custom domain
 ];
 
 app.use(cors({

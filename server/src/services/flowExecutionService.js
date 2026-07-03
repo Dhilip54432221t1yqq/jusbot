@@ -16,12 +16,64 @@ export const flowExecutionService = {
 
         switch (node.type) {
             case 'action':
-                await this.processActions(workspaceId, contactId, node.data.actions || []);
+                await this.processActions(workspaceId, contactId, node.data?.actions || node.actions || []);
                 break;
-            // Add other node types as needed
+            case 'send_message':
+                await this.processSendMessage(workspaceId, contactId, node);
+                break;
+            case 'question':
+                await this.processQuestion(workspaceId, contactId, node);
+                break;
+            case 'condition':
+                await this.processCondition(workspaceId, contactId, node);
+                break;
+            case 'split':
+                await this.processSplit(workspaceId, contactId, node);
+                break;
+            case 'send_email':
+                await this.processSendEmail(workspaceId, contactId, node);
+                break;
+            case 'go_to':
+                await this.processGoTo(workspaceId, contactId, node);
+                break;
+            case 'comment':
+            case 'canvas':
+                // Organizational/No-op nodes
+                console.log(`[FlowEngine] Ignoring non-execution node: ${node.type}`);
+                break;
             default:
                 console.log(`[FlowEngine] No handler for node type: ${node.type}`);
         }
+    },
+
+    async processSendMessage(workspaceId, contactId, node) {
+        console.log(`[FlowEngine] Processing send_message node: ${node.id}`);
+        // Implementation for sending a message
+    },
+
+    async processQuestion(workspaceId, contactId, node) {
+        console.log(`[FlowEngine] Processing question node: ${node.id}`);
+        // Implementation for asking a question and pausing the flow
+    },
+
+    async processCondition(workspaceId, contactId, node) {
+        console.log(`[FlowEngine] Processing condition node: ${node.id}`);
+        // Implementation for routing flow based on conditions
+    },
+
+    async processSplit(workspaceId, contactId, node) {
+        console.log(`[FlowEngine] Processing split node: ${node.id}`);
+        // Implementation for A/B testing / random split
+    },
+
+    async processSendEmail(workspaceId, contactId, node) {
+        console.log(`[FlowEngine] Processing send_email node: ${node.id}`);
+        // Implementation for sending formatted email
+    },
+
+    async processGoTo(workspaceId, contactId, node) {
+        console.log(`[FlowEngine] Processing go_to node: ${node.id}`);
+        // Implementation for jumping to another step
     },
 
     /**

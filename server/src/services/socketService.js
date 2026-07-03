@@ -8,6 +8,8 @@ const allowedOrigins = [
   'http://localhost:5173',       // Dev frontend
   'http://51.20.131.117',        // Production
   'https://51.20.131.117',
+  'https://jusbot.vercel.app',
+  'https://chatbot.jusbot.in',   // Production custom domain
 ];
 
 export const initSocket = (server) => {
