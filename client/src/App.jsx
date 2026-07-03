@@ -21,6 +21,7 @@ import WhatsAppAd from './pages/WhatsAppAd';
 import WhatsAppWidget from './pages/WhatsAppWidget';
 import WhatsAppStore from './pages/WhatsAppStore';
 import WhatsAppCRM from './pages/WhatsAppCRM';
+import WhatsAppPayments from './pages/WhatsAppPayments';
 import Triggers from './pages/Triggers';
 import Keywords from './pages/Keywords';
 import Sequences from './pages/Sequences';
@@ -101,6 +102,7 @@ function AppRoutes() {
             <Route path="whatsapp/ad" element={<WhatsAppAd />} />
             <Route path="whatsapp/widget" element={<WhatsAppWidget />} />
             <Route path="whatsapp/store" element={<WhatsAppStore />} />
+            <Route path="whatsapp/payments" element={<WhatsAppPayments />} />
             <Route path="whatsapp/crm" element={<WhatsAppCRM />} />
             <Route path="whatsapp/contacts" element={<BotUsers />} />
             

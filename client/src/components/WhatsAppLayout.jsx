@@ -26,6 +26,7 @@ export default function WhatsAppLayout() {
     { id: 'ad', name: 'Click to Whatsapp ad', icon: Megaphone, path: `/${workspaceId}/whatsapp/ad` },
     { id: 'widget', name: 'WhatsApp Widget', icon: MessageCircle, path: `/${workspaceId}/whatsapp/widget` },
     { id: 'store', name: 'Store', icon: ShoppingBag, path: `/${workspaceId}/whatsapp/store` },
+    { id: 'payments', name: 'Payments (India)', icon: Zap, path: `/${workspaceId}/whatsapp/payments` },
     { id: 'crm', name: 'WA CRM', icon: Users, path: `/${workspaceId}/whatsapp/crm` },
     { id: 'contacts', name: 'Bot Users', icon: Users, path: `/${workspaceId}/whatsapp/contacts` },
     { id: 'automation', name: 'Automation', icon: Zap, path: `/${workspaceId}/whatsapp/automation/triggers` },

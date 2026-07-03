@@ -44,6 +44,8 @@ import whatsappTemplatesRouter from './src/routes/whatsappTemplates.js';
 import whatsappFlowsRouter from './src/routes/whatsappFlows.js';
 import whatsappMarketingRouter from './src/routes/whatsappMarketing.js';
 import whatsappCatalogRouter from './src/routes/whatsappCatalog.js';
+import whatsappAdsRouter from './src/routes/whatsappAds.js';
+import whatsappPaymentsRouter from './src/routes/whatsappPayments.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -126,6 +128,8 @@ app.use('/api/whatsapp-templates', authenticate, whatsappTemplatesRouter);
 app.use('/api/whatsapp-flows', authenticate, whatsappFlowsRouter);
 app.use('/api/whatsapp-marketing', authenticate, whatsappMarketingRouter);
 app.use('/api/whatsapp-catalog', authenticate, whatsappCatalogRouter);
+app.use('/api/whatsapp-ads', authenticate, whatsappAdsRouter);
+app.use('/api/whatsapp-payments', authenticate, whatsappPaymentsRouter);
 
 
 // Start Sequence Worker (Check every 60 seconds)

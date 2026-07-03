@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
     MessageSquare, BarChart2, Users, Zap, Settings, ChevronDown,
     Megaphone, Smartphone, Image, Sparkles, CheckCircle, Plus,
-    Facebook, Link, ChevronRight, ArrowLeft
+    Facebook, Link, ChevronRight, ArrowLeft, Trash2, Edit3
 } from "lucide-react";
+import config from "../config";
 
 // ─── Inner Sidebar Nav Items ────────────────────────────────────────────────
 const NAV_ITEMS = [
@@ -12,6 +13,7 @@ const NAV_ITEMS = [
     { key: "events",      label: "Events",         icon: Zap },
     { key: "leads",       label: "Leads",          icon: Users },
     { key: "audiences",   label: "Audiences",      icon: Users },
+    { key: "welcome_seq", label: "Welcome Sequences", icon: MessageSquare },
     { key: "setup",       label: "Setup",          icon: Settings },
 ];
 
@@ -351,6 +353,241 @@ function CampaignView({ onBack }) {
     );
 }
 
+// ─── Welcome Sequences View ──────────────────────────────────────────────────
+function WelcomeSequencesView() {
+    const { workspaceId } = useParams();
+    const [sequences, setSequences] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [wabaId, setWabaId] = useState("");
+    
+    // Form state
+    const [isFormOpen, setIsFormOpen] = useState(false);
+    const [formData, setFormData] = useState({ name: "", text: "", autofill_message: "", ice_breakers: [] });
+    const [editId, setEditId] = useState(null);
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        // Dummy load for wabaId from settings or env
+        // In real app, fetch from workspace settings
+        const fetchSequences = async () => {
+            const wId = "103630605943482"; // Hardcoded for demo/sandbox or fetched
+            setWabaId(wId);
+            try {
+                const res = await fetch(`${config.API_BASE}/whatsapp-ads/welcome-sequences?workspaceId=${workspaceId}&wabaId=${wId}`);
+                if (res.ok) {
+                    setSequences(await res.json());
+                }
+            } catch(e) { console.error(e); } finally { setLoading(false); }
+        };
+        fetchSequences();
+    }, [workspaceId]);
+
+    const handleAddIcebreaker = () => {
+        if (formData.ice_breakers.length < 5) {
+            setFormData({ ...formData, ice_breakers: [...formData.ice_breakers, ""] });
+        }
+    };
+
+    const handleIcebreakerChange = (index, val) => {
+        const newIb = [...formData.ice_breakers];
+        newIb[index] = val;
+        setFormData({ ...formData, ice_breakers: newIb });
+    };
+
+    const handleRemoveIcebreaker = (index) => {
+        const newIb = formData.ice_breakers.filter((_, i) => i !== index);
+        setFormData({ ...formData, ice_breakers: newIb });
+    };
+
+    const handleSave = async () => {
+        if (!formData.name || !formData.text) return alert("Name and welcome text are required.");
+        setSaving(true);
+        try {
+            const sequenceData = {
+                sequence_id: editId,
+                name: formData.name,
+                welcome_message_sequence: {
+                    text: formData.text,
+                    autofill_message: formData.autofill_message ? { content: formData.autofill_message } : undefined,
+                    ice_breakers: formData.ice_breakers.filter(b => b.trim() !== "").map(b => ({ title: b }))
+                }
+            };
+            
+            const res = await fetch(`${config.API_BASE}/whatsapp-ads/welcome-sequences`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ workspaceId, wabaId, ...sequenceData })
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || "Failed to save sequence");
+            }
+            
+            setIsFormOpen(false);
+            setEditId(null);
+            setFormData({ name: "", text: "", autofill_message: "", ice_breakers: [] });
+            
+            // Refetch
+            const refetch = await fetch(`${config.API_BASE}/whatsapp-ads/welcome-sequences?workspaceId=${workspaceId}&wabaId=${wabaId}`);
+            if (refetch.ok) setSequences(await refetch.json());
+            
+        } catch(e) {
+            alert(e.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleEdit = (seq) => {
+        setEditId(seq.sequence_id);
+        const json = seq.welcome_message_sequence_json || {};
+        setFormData({
+            name: seq.name,
+            text: json.text || "",
+            autofill_message: json.autofill_message?.content || "",
+            ice_breakers: (json.ice_breakers || []).map(ib => ib.title)
+        });
+        setIsFormOpen(true);
+    };
+
+    const handleDelete = async (seqId) => {
+        if (!window.confirm("Delete this sequence? It cannot be linked to any active ad.")) return;
+        try {
+            const res = await fetch(`${config.API_BASE}/whatsapp-ads/welcome-sequences/${seqId}?workspaceId=${workspaceId}&wabaId=${wabaId}`, {
+                method: 'DELETE'
+            });
+            if (res.ok) {
+                setSequences(sequences.filter(s => s.sequence_id !== seqId));
+            } else {
+                const err = await res.json();
+                alert(err.error);
+            }
+        } catch(e) { alert(e.message); }
+    };
+
+    if (isFormOpen) {
+        return (
+            <div className="flex-1 overflow-y-auto p-8" style={{ fontFamily: "'Poppins', sans-serif" }}>
+                <div className="max-w-2xl mx-auto space-y-6">
+                    <button onClick={() => setIsFormOpen(false)} className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-slate-700 transition-colors mb-2">
+                        <ArrowLeft size={14} /> Back to Sequences
+                    </button>
+                    
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
+                        <h2 className="text-base font-extrabold text-slate-800">{editId ? "Edit Sequence" : "Create Welcome Sequence"}</h2>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Sequence Name (Internal)</label>
+                                <input 
+                                    type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})}
+                                    className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-green-400 outline-none"
+                                />
+                            </div>
+                            
+                            <div>
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Welcome Message Text</label>
+                                <textarea 
+                                    rows={3} value={formData.text} onChange={e => setFormData({...formData, text: e.target.value})}
+                                    className="w-full px-4 py-3 text-sm rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-green-400 outline-none"
+                                />
+                            </div>
+                            
+                            <div>
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Autofill Pre-filled Reply (Optional)</label>
+                                <input 
+                                    type="text" value={formData.autofill_message} onChange={e => setFormData({...formData, autofill_message: e.target.value})}
+                                    placeholder="e.g. Hello! Can I get more info on this!"
+                                    className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-green-400 outline-none"
+                                />
+                            </div>
+                            
+                            <div>
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Ice Breakers / Quick Replies (Max 5)</label>
+                                <div className="space-y-2">
+                                    {formData.ice_breakers.map((ib, i) => (
+                                        <div key={i} className="flex gap-2">
+                                            <input 
+                                                type="text" value={ib} onChange={e => handleIcebreakerChange(i, e.target.value)}
+                                                className="flex-1 px-4 py-2 text-sm rounded-xl border border-slate-200 bg-slate-50"
+                                            />
+                                            <button onClick={() => handleRemoveIcebreaker(i)} className="px-3 py-2 text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={16}/></button>
+                                        </div>
+                                    ))}
+                                </div>
+                                {formData.ice_breakers.length < 5 && (
+                                    <button onClick={handleAddIcebreaker} className="mt-2 text-xs font-bold text-blue-600 hover:underline">+ Add Icebreaker</button>
+                                )}
+                            </div>
+                        </div>
+                        
+                        <div className="flex justify-end pt-4">
+                            <button onClick={handleSave} disabled={saving} className="px-7 py-3 bg-slate-900 text-white font-bold text-sm rounded-xl hover:bg-slate-800 disabled:opacity-50">
+                                {saving ? "Saving..." : "Save Sequence"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex-1 p-8 overflow-y-auto" style={{ fontFamily: "'Poppins', sans-serif" }}>
+            <div className="max-w-4xl mx-auto">
+                <div className="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 className="text-xl font-bold text-slate-800">Welcome Message Sequences</h2>
+                        <p className="text-sm text-slate-500 mt-1">Manage Click-to-WhatsApp ad welcome sequences via the Meta API.</p>
+                    </div>
+                    <button onClick={() => { setEditId(null); setFormData({ name: "", text: "", autofill_message: "", ice_breakers: [] }); setIsFormOpen(true); }} className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white font-bold text-sm rounded-xl hover:bg-blue-700 shadow-sm">
+                        <Plus size={16} /> Create Sequence
+                    </button>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <table className="w-full text-left">
+                        <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-[11px] font-bold uppercase tracking-wider">
+                                <th className="px-6 py-4">Sequence ID</th>
+                                <th className="px-6 py-4">Name</th>
+                                <th className="px-6 py-4">Status</th>
+                                <th className="px-6 py-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {loading ? (
+                                <tr><td colSpan="4" className="text-center py-12 text-slate-500">Loading...</td></tr>
+                            ) : sequences.length === 0 ? (
+                                <tr><td colSpan="4" className="text-center py-12 text-slate-500">No welcome sequences found.</td></tr>
+                            ) : (
+                                sequences.map(seq => (
+                                    <tr key={seq.id} className="border-b border-slate-100 hover:bg-slate-50">
+                                        <td className="px-6 py-4 font-mono text-xs text-slate-600">{seq.sequence_id}</td>
+                                        <td className="px-6 py-4 font-semibold text-slate-800">{seq.name}</td>
+                                        <td className="px-6 py-4">
+                                            {seq.is_used_in_ad ? (
+                                                <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded">Used in Ad</span>
+                                            ) : (
+                                                <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded">Not Used</span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <button onClick={() => handleEdit(seq)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg mr-1" title="Edit"><Edit3 size={16}/></button>
+                                            <button onClick={() => handleDelete(seq.sequence_id)} disabled={seq.is_used_in_ad} className="p-2 text-red-500 hover:bg-red-50 rounded-lg disabled:opacity-30 disabled:hover:bg-transparent" title="Delete"><Trash2 size={16}/></button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ─── Placeholder Views ───────────────────────────────────────────────────────
 function PlaceholderView({ label }) {
     return (
@@ -375,6 +612,9 @@ export default function WhatsAppAd() {
         if (activeTab === "setup") {
             if (showCreateAd) return <CampaignView onBack={() => setShowCreateAd(false)} />;
             return <SetupView onCreateAd={() => setShowCreateAd(true)} />;
+        }
+        if (activeTab === "welcome_seq") {
+            return <WelcomeSequencesView />;
         }
         return <PlaceholderView label={NAV_ITEMS.find(n => n.key === activeTab)?.label || activeTab} />;
     };
