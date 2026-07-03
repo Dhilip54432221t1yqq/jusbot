@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabase';
 import { Download, Search, FileText, ExternalLink } from 'lucide-react';
-import { format } from 'date-fns';
 
 export default function ResponsesList() {
     const [responses, setResponses] = useState([]);
@@ -46,13 +45,17 @@ export default function ResponsesList() {
         if (responses.length === 0) return;
         
         const headers = ['Response ID', 'Flow Name', 'Contact / Phone', 'Completed At', 'Data'];
-        const rows = responses.map(r => [
-            r.id,
-            r.whatsapp_flows?.name || r.flow_id,
-            r.contact_id || r.phone_number || 'Unknown',
-            format(new Date(r.created_at || r.completed_at), 'yyyy-MM-dd HH:mm:ss'),
-            JSON.stringify(r.response_payload)
-        ]);
+        const rows = responses.map(r => {
+            const d = new Date(r.created_at || r.completed_at);
+            const dateStr = d.toISOString().slice(0, 19).replace('T', ' ');
+            return [
+                r.id,
+                r.whatsapp_flows?.name || r.flow_id,
+                r.contact_id || r.phone_number || 'Unknown',
+                dateStr,
+                JSON.stringify(r.response_payload)
+            ];
+        });
         
         const csvContent = "data:text/csv;charset=utf-8," 
             + headers.join(",") + "\n" 
@@ -61,7 +64,8 @@ export default function ResponsesList() {
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `flow_responses_${format(new Date(), 'yyyyMMdd')}.csv`);
+        const dateSuffix = new Date().toISOString().slice(0,10).replace(/-/g, '');
+        link.setAttribute("download", `flow_responses_${dateSuffix}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -149,7 +153,7 @@ export default function ResponsesList() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-slate-600 text-sm whitespace-nowrap">
-                                            {format(new Date(resp.completed_at || resp.created_at), 'MMM d, yyyy HH:mm')}
+                                            {new Date(resp.completed_at || resp.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}
                                         </td>
                                     </tr>
                                 ))

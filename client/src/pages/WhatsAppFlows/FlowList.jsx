@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabase';
 import { Plus, Edit3, Copy, Trash2, Eye, Link, Play } from 'lucide-react';
-import { format } from 'date-fns';
 
 export default function FlowList() {
     const [flows, setFlows] = useState([]);
@@ -149,7 +148,7 @@ export default function FlowList() {
                                         )}
                                     </td>
                                     <td className="px-6 py-4 text-slate-600 text-sm">
-                                        {format(new Date(flow.updated_at), 'MMM d, yyyy')}
+                                        {new Date(flow.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
