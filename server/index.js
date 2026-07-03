@@ -43,6 +43,7 @@ import agentGroupsRouter from './src/routes/agentGroups.js';
 import whatsappTemplatesRouter from './src/routes/whatsappTemplates.js';
 import whatsappFlowsRouter from './src/routes/whatsappFlows.js';
 import whatsappMarketingRouter from './src/routes/whatsappMarketing.js';
+import whatsappCatalogRouter from './src/routes/whatsappCatalog.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -124,6 +125,7 @@ app.use('/api/agent-groups', authenticate, agentGroupsRouter);
 app.use('/api/whatsapp-templates', authenticate, whatsappTemplatesRouter);
 app.use('/api/whatsapp-flows', authenticate, whatsappFlowsRouter);
 app.use('/api/whatsapp-marketing', authenticate, whatsappMarketingRouter);
+app.use('/api/whatsapp-catalog', authenticate, whatsappCatalogRouter);
 
 
 // Start Sequence Worker (Check every 60 seconds)

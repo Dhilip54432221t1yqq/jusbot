@@ -16,6 +16,7 @@ import WhatsAppTemplates from './pages/WhatsAppTemplates';
 import FlowTemplates from './pages/FlowTemplates';
 import WhatsAppFlows from './pages/WhatsAppFlows';
 import WhatsAppMarketing from './pages/WhatsAppMarketing';
+import WhatsAppCatalog from './pages/WhatsAppCatalog';
 import WhatsAppAd from './pages/WhatsAppAd';
 import WhatsAppWidget from './pages/WhatsAppWidget';
 import WhatsAppStore from './pages/WhatsAppStore';
@@ -108,6 +109,7 @@ function AppRoutes() {
             <Route path="whatsapp/chatbot-flows" element={<Flows />} />
             <Route path="whatsapp/flows/*" element={<WhatsAppFlows />} />
             <Route path="whatsapp/marketing/*" element={<WhatsAppMarketing />} />
+            <Route path="whatsapp/catalog/*" element={<WhatsAppCatalog />} />
             <Route path="whatsapp/automation" element={<AutomationLayout />}>
               <Route path="triggers" element={<Triggers />} />
               <Route path="keywords" element={<Keywords />} />

@@ -20,6 +20,7 @@ export default function WhatsAppLayout() {
     { id: 'chatbot-flows', name: 'Chatbot Flows', icon: GitBranch, path: `/${workspaceId}/whatsapp/chatbot-flows` },
     { id: 'meta-flows', name: 'WhatsApp Flows', icon: GitBranch, path: `/${workspaceId}/whatsapp/flows` },
     { id: 'marketing', name: 'Marketing API', icon: Megaphone, path: `/${workspaceId}/whatsapp/marketing` },
+    { id: 'catalog', name: 'Catalog Commerce', icon: ShoppingBag, path: `/${workspaceId}/whatsapp/catalog` },
     { id: 'templates', name: 'Message Templates', icon: FolderOpen, path: `/${workspaceId}/whatsapp/templates` },
     { id: 'flow-templates', name: 'Prefilled Template', icon: FolderOpen, path: `/${workspaceId}/whatsapp/flow-templates` },
     { id: 'ad', name: 'Click to Whatsapp ad', icon: Megaphone, path: `/${workspaceId}/whatsapp/ad` },
