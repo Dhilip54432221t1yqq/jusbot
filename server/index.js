@@ -41,6 +41,7 @@ import workspacesRouter from './src/routes/workspaces.js';
 import ecommerceRouter from './src/routes/ecommerce.js';
 import agentGroupsRouter from './src/routes/agentGroups.js';
 import whatsappTemplatesRouter from './src/routes/whatsappTemplates.js';
+import whatsappFlowsRouter from './src/routes/whatsappFlows.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -120,6 +121,7 @@ app.use('/api/workspaces', authenticate, workspacesRouter);
 app.use('/api/ecommerce', authenticate, ecommerceRouter);
 app.use('/api/agent-groups', authenticate, agentGroupsRouter);
 app.use('/api/whatsapp-templates', authenticate, whatsappTemplatesRouter);
+app.use('/api/whatsapp-flows', authenticate, whatsappFlowsRouter);
 
 
 // Start Sequence Worker (Check every 60 seconds)

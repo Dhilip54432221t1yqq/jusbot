@@ -17,7 +17,8 @@ export default function WhatsAppLayout() {
   
   // WhatsApp inner sidebar tabs
   const tabs = [
-    { id: 'flows', name: 'Flows', icon: GitBranch, path: `/${workspaceId}/whatsapp/flows` },
+    { id: 'chatbot-flows', name: 'Chatbot Flows', icon: GitBranch, path: `/${workspaceId}/whatsapp/chatbot-flows` },
+    { id: 'meta-flows', name: 'WhatsApp Flows', icon: GitBranch, path: `/${workspaceId}/whatsapp/flows` },
     { id: 'templates', name: 'Message Templates', icon: FolderOpen, path: `/${workspaceId}/whatsapp/templates` },
     { id: 'flow-templates', name: 'Prefilled Template', icon: FolderOpen, path: `/${workspaceId}/whatsapp/flow-templates` },
     { id: 'ad', name: 'Click to Whatsapp ad', icon: Megaphone, path: `/${workspaceId}/whatsapp/ad` },
