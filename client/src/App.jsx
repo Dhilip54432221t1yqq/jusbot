@@ -13,6 +13,7 @@ import BotUsers from './pages/BotUsers';
 import WhatsAppCloudSetup from './pages/WhatsAppCloudSetup';
 import WhatsAppConnected from './pages/WhatsAppConnected';
 import WhatsAppTemplates from './pages/WhatsAppTemplates';
+import FlowTemplates from './pages/FlowTemplates';
 import WhatsAppAd from './pages/WhatsAppAd';
 import WhatsAppWidget from './pages/WhatsAppWidget';
 import WhatsAppStore from './pages/WhatsAppStore';
@@ -93,6 +94,7 @@ function AppRoutes() {
             <Route path="whatsapp-cloud" element={<WhatsAppCloudSetup />} />
             <Route path="whatsapp-connected" element={<WhatsAppConnected />} />
             <Route path="whatsapp/templates" element={<WhatsAppTemplates />} />
+            <Route path="whatsapp/flow-templates" element={<FlowTemplates />} />
             <Route path="whatsapp/ad" element={<WhatsAppAd />} />
             <Route path="whatsapp/widget" element={<WhatsAppWidget />} />
             <Route path="whatsapp/store" element={<WhatsAppStore />} />

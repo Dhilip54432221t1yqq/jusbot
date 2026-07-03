@@ -4,7 +4,7 @@ import { MessageSquare, LayoutGrid, CheckCircle, ArrowRight, Play, Edit3, Shoppi
 import { supabase } from "../supabase";
 import { useAuth } from "../contexts/AuthContext";
 
-export default function WhatsAppTemplates() {
+export default function FlowTemplates() {
     const { workspaceId } = useParams();
     const navigate = useNavigate();
     const { user } = useAuth();
