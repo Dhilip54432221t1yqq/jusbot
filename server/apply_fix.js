@@ -1,6 +1,6 @@
 
 import './src/config/env.js';
-import { supabase } from './src/utils/supabase.js';
+import { supabase } from './src/utils/db.js';
 
 async function applyMissingSchema() {
     console.log('--- Applying Missing workspace_members Table ---');

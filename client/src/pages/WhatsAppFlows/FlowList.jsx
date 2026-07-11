@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../supabase';
+import { supabase } from '../../db';
 import { Plus, Edit3, Copy, Trash2, Eye, Link, Play } from 'lucide-react';
 
 export default function FlowList() {

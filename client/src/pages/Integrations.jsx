@@ -4,7 +4,7 @@ import {
     Plug, Search, CheckCircle, ExternalLink, FileSpreadsheet
 } from "lucide-react";
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
-import { supabase } from "../supabase";
+import { supabase } from "../db";
 import { useWorkspace } from "../contexts/WorkspaceContext";
 import { useAuth } from "../contexts/AuthContext";
 import LottieLoader from "../components/LottieLoader";

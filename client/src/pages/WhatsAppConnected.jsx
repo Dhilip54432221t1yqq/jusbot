@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { MessageCircle, RefreshCw, Activity, CheckCircle, AlertCircle, Zap, ExternalLink, ChevronRight } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { supabase } from "../supabase";
+import { supabase } from "../db";
 import config from "../config";
 
 export default function WhatsAppConnected() {

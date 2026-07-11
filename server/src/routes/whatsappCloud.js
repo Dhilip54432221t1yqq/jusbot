@@ -1,12 +1,13 @@
 import express from 'express';
 import axios from 'axios';
-import { supabase } from '../utils/supabase.js';
+import { supabase } from '../utils/db.js';
 import { whatsappCloudService } from '../services/whatsappCloudService.js';
 import { contactsService } from '../services/contactsService.js';
 import { livechatService } from '../services/livechatService.js';
 import { authenticate } from '../middleware/authMiddleware.js';
 import { enqueueWebhook } from '../utils/queue.js';
 import { getIO } from '../services/socketService.js';
+import { flowExecutionService } from '../services/flowExecutionService.js';
 
 const router = express.Router();
 
@@ -118,7 +119,7 @@ router.post('/config', async (req, res) => {
 // 1.5. Exchange Token and Onboard Endpoint
 router.post('/exchange-code', async (req, res) => {
   try {
-    const { code, workspaceId } = req.body;
+    const { code, workspaceId, wabaId: bodyWabaId, phoneId: bodyPhoneId } = req.body;
     if (!code || !workspaceId) {
        return res.status(400).json({ success: false, error: "Missing required fields" });
     }
@@ -131,7 +132,7 @@ router.post('/exchange-code', async (req, res) => {
     }
 
     // 1. Exchange auth code for long-lived access token
-    const tokenResponse = await axios.get(`https://graph.facebook.com/v23.0/oauth/access_token`, {
+    const tokenResponse = await axios.get(`https://graph.facebook.com/v25.0/oauth/access_token`, {
         params: {
             client_id: fbAppId,
             client_secret: fbAppSecret,
@@ -141,26 +142,30 @@ router.post('/exchange-code', async (req, res) => {
 
     const accessToken = tokenResponse.data.access_token;
     
-    // 2. Fetch WABA ID and Phone ID
-    // In a real scenario you may need specific granular scopes or pass a token to debug_token.
-    // For Embedded Signup, we query the accounts associated with the token.
-    let wabaId = "fetch_waba_id_here";
-    let phoneId = "fetch_phone_id_here";
+    // 2. Fetch WABA ID and Phone ID (or use passed ones)
+    let wabaId = bodyWabaId || "fetch_waba_id_here";
+    let phoneId = bodyPhoneId || "fetch_phone_id_here";
     
-    try {
-        const waAccountsResponse = await axios.get(`https://graph.facebook.com/v23.0/me/client_whatsapp_business_accounts`, {
-            headers: { Authorization: `Bearer ${accessToken}` }
-        });
-        wabaId = waAccountsResponse.data?.data?.[0]?.id || wabaId;
-        
-        if (wabaId !== "fetch_waba_id_here") {
-            const phonesResponse = await axios.get(`https://graph.facebook.com/v23.0/${wabaId}/phone_numbers`, {
+    if (wabaId === "fetch_waba_id_here" || phoneId === "fetch_phone_id_here") {
+        try {
+            const waAccountsResponse = await axios.get(`https://graph.facebook.com/v25.0/me/client_whatsapp_business_accounts`, {
                 headers: { Authorization: `Bearer ${accessToken}` }
             });
-            phoneId = phonesResponse.data?.data?.[0]?.id || phoneId;
+            const fetchedWaba = waAccountsResponse.data?.data?.[0]?.id;
+            if (fetchedWaba) {
+                if (wabaId === "fetch_waba_id_here") wabaId = fetchedWaba;
+                
+                const phonesResponse = await axios.get(`https://graph.facebook.com/v25.0/${wabaId}/phone_numbers`, {
+                    headers: { Authorization: `Bearer ${accessToken}` }
+                });
+                const fetchedPhone = phonesResponse.data?.data?.[0]?.id;
+                if (fetchedPhone && phoneId === "fetch_phone_id_here") {
+                    phoneId = fetchedPhone;
+                }
+            }
+        } catch (e) {
+            console.warn("Could not fetch specific WABA automatically. You may need extra permissions.", e.response?.data || e.message);
         }
-    } catch (e) {
-        console.warn("Could not fetch specific WABA automatically. You may need extra permissions.", e.response?.data);
     }
 
     // 3. Store the acquired details
@@ -169,7 +174,7 @@ router.post('/exchange-code', async (req, res) => {
       waba_id: wabaId,
       access_token: accessToken,
       verify_token: 'reflx_webhook_secret_2026', // Use existing default webhook token
-      api_version: 'v23.0'
+      api_version: 'v25.0'
     };
 
     const { data: channel, error } = await supabase
@@ -248,8 +253,11 @@ router.get('/status/:workspaceId', async (req, res) => {
             .eq('channel_type', 'whatsapp_cloud')
             .single();
 
+        const fbAppId = process.env.FB_APP_ID || '1336518974614294';
+        const fbConfigId = process.env.FB_CONFIG_ID || '';
+
         if (error || !channel) {
-            return res.json({ connected: false });
+            return res.json({ connected: false, fbAppId, fbConfigId });
         }
         
         // SECURITY: Never send raw credentials to the frontend
@@ -262,7 +270,9 @@ router.get('/status/:workspaceId', async (req, res) => {
             lastSyncTime: channel.updated_at,
             isBotLinked: channel.credentials?.is_bot_linked || false,
             isOpenBot: channel.credentials?.is_open_bot || false,
-            isAccountActive: channel.is_active
+            isAccountActive: channel.is_active,
+            fbAppId,
+            fbConfigId
         });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -400,8 +410,25 @@ export const processWhatsAppWebhook = async (body, workspaceId) => {
           const message = change.value.messages[0];
           const contact = change.value.contacts[0];
           const phone = message.from;
-          const text = message.text ? message.text.body : '';
           
+          let text = '';
+          let buttonId = null;
+
+          if (message.type === 'text') {
+            text = message.text?.body || '';
+          } else if (message.type === 'interactive') {
+            if (message.interactive?.type === 'button_reply') {
+              text = message.interactive.button_reply?.title || '';
+              buttonId = message.interactive.button_reply?.id || null;
+            } else if (message.interactive?.type === 'list_reply') {
+              text = message.interactive.list_reply?.title || '';
+              buttonId = message.interactive.list_reply?.id || null;
+            }
+          } else if (message.type === 'button') {
+            text = message.button?.text || '';
+            buttonId = message.button?.payload || null;
+          }
+
           const { data: channel } = await supabase
               .from('channels')
               .select('id')
@@ -413,10 +440,10 @@ export const processWhatsAppWebhook = async (body, workspaceId) => {
 
           const result = await handleIncomingMessage('whatsapp_cloud', {
             externalSenderId: phone,
-            content: text,
+            content: text || '[Interactive Response]',
             workspaceId: workspaceId,
             channelId: channel.id,
-            name: contact.profile.name
+            name: contact.profile?.name || `WhatsApp User ${phone}`
           });
 
           const io = getIO();
@@ -425,6 +452,24 @@ export const processWhatsAppWebhook = async (body, workspaceId) => {
           
           console.log("Triggering flowbuilder event 'whatsapp_cloud_incoming' for", phone);
           await whatsappCloudService.logEvent(workspaceId, channel.id, 'webhook', 'success', 'Received incoming message', { phone, text });
+
+          // Run the message through the flow execution engine
+          await flowExecutionService.handleIncomingMessage(workspaceId, result.conversation.contact_id, text, { buttonId });
+        } else if (change.field === 'message_template_status_update') {
+          const { event, message_template_id, reason } = change.value;
+          let newStatus = 'Unknown';
+          if (event === 'APPROVED') newStatus = 'Approved';
+          else if (event === 'REJECTED') newStatus = 'Rejected';
+          else if (event === 'PENDING') newStatus = 'In Review';
+          else if (event === 'PAUSED' || event === 'DISABLED' || event === 'FLAGGED') newStatus = 'Paused';
+
+          if (message_template_id) {
+            await supabase.from('whatsapp_templates')
+              .update({ status: newStatus, rejection_reason: reason || null })
+              .eq('meta_template_id', message_template_id);
+            
+            console.log(`Updated template ${message_template_id} status to ${newStatus}`);
+          }
         }
       }
     }

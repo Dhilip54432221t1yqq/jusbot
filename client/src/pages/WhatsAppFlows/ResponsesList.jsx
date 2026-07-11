@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../supabase';
+import { supabase } from '../../db';
 import { Download, Search, FileText, ExternalLink } from 'lucide-react';
 
 export default function ResponsesList() {

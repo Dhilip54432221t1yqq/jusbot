@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase } from '../../supabase';
+import { supabase } from '../../db';
 import { useAuth } from '../../contexts/AuthContext';
-import { Plus, Edit3, Copy, Send, Trash2, ChevronLeft, CheckCircle, Clock, XCircle, AlertCircle } from 'lucide-react';
+import { Plus, Edit3, Copy, Send, Trash2, ChevronLeft, CheckCircle, Clock, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import TemplateBuilder from './TemplateBuilder';
+import config from '../../config';
+import toast from 'react-hot-toast';
 
 const SAMPLE_TEMPLATES = [
     {
@@ -54,8 +56,9 @@ export default function WhatsAppTemplates() {
     const [templates, setTemplates] = useState([]);
     const [loading, setLoading] = useState(true);
     const [editingTemplate, setEditingTemplate] = useState(null);
+    const [syncing, setSyncing] = useState(false);
 
-    const { user } = useAuth();
+    const { user, authFetch } = useAuth();
     const { workspaceId } = useParams();
 
     useEffect(() => {
@@ -64,8 +67,8 @@ export default function WhatsAppTemplates() {
         }
     }, [view, workspaceId]);
 
-    const fetchTemplates = async () => {
-        setLoading(true);
+    const fetchTemplates = async (silent = false) => {
+        if (!silent) setLoading(true);
         try {
             const { data, error } = await supabase
                 .from('whatsapp_templates')
@@ -79,7 +82,44 @@ export default function WhatsAppTemplates() {
             console.error("Error fetching templates:", err);
             // Ignore error for now, maybe table doesn't exist yet
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
+        }
+    };
+
+    const handleSyncAll = async () => {
+        setSyncing(true);
+        try {
+            // Find templates that need syncing (e.g. In Review)
+            const templatesToSync = templates.filter(t => t.status === 'In Review' && t.meta_template_id);
+            
+            if (templatesToSync.length === 0) {
+                toast("No templates currently 'In Review' to sync.");
+                setSyncing(false);
+                return;
+            }
+
+            for (const tmpl of templatesToSync) {
+                try {
+                    await authFetch(`${config.API_BASE}/whatsapp-templates/sync`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            templateId: tmpl.id,
+                            workspaceId
+                        })
+                    });
+                } catch (e) {
+                    console.error("Failed to sync template:", tmpl.id, e);
+                }
+            }
+            
+            await fetchTemplates(true);
+            toast.success("Sync completed.");
+        } catch (err) {
+            console.error("Sync error:", err);
+            toast.error("Error during sync.");
+        } finally {
+            setSyncing(false);
         }
     };
 
@@ -120,22 +160,14 @@ export default function WhatsAppTemplates() {
                     <p className="text-sm text-slate-500 mt-1">Create and manage Meta-approved templates for outgoing messages.</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <select 
-                        className="px-4 py-2 bg-slate-100 border border-slate-200 text-slate-700 rounded-lg text-sm outline-none cursor-pointer"
-                        onChange={(e) => {
-                            if (e.target.value !== '') {
-                                const sample = SAMPLE_TEMPLATES[e.target.value];
-                                setEditingTemplate(sample);
-                                setView('builder');
-                                e.target.value = '';
-                            }
-                        }}
+                    <button 
+                        onClick={handleSyncAll}
+                        disabled={syncing}
+                        className="flex items-center gap-2 px-4 py-2 bg-slate-100 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-200 transition font-medium disabled:opacity-50"
                     >
-                        <option value="">Use Sample Template...</option>
-                        {SAMPLE_TEMPLATES.map((t, i) => (
-                            <option key={i} value={i}>{t.category}: {t.name}</option>
-                        ))}
-                    </select>
+                        <RefreshCw size={18} className={syncing ? 'animate-spin' : ''} />
+                        {syncing ? 'Syncing...' : 'Sync'}
+                    </button>
                     <button 
                         onClick={() => { setEditingTemplate(null); setView('builder'); }}
                         className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"

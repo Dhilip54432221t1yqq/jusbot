@@ -1,4 +1,4 @@
-import { supabase } from '../src/utils/supabase.js';
+import { supabase } from '../src/utils/db.js';
 
 async function run() {
     console.log('Adding continue_selling to products...');

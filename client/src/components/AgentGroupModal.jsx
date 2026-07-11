@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Image as ImageIcon, Loader2, Upload } from 'lucide-react';
-import { supabase } from '../supabase';
+import { supabase } from '../db';
 import { useAuth } from '../contexts/AuthContext';
 import config from '../config';
 import { toast } from 'react-hot-toast';

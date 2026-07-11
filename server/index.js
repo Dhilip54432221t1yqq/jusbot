@@ -46,7 +46,9 @@ import whatsappMarketingRouter from './src/routes/whatsappMarketing.js';
 import whatsappCatalogRouter from './src/routes/whatsappCatalog.js';
 import whatsappAdsRouter from './src/routes/whatsappAds.js';
 import whatsappPaymentsRouter from './src/routes/whatsappPayments.js';
-
+import supabaseMockRouter from './src/routes/dbMock.js';
+import { connectToDatabase } from './src/utils/mongodb.js';
+import { initializeDatabase } from './src/utils/initDb.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -105,6 +107,7 @@ app.use('/api', apiLimiter);
 // Google OAuth callbacks and webhook endpoints are NOT protected
 app.use('/api/auth', authRouter);
 app.use('/api/webhooks', webhooksRouter);
+app.use('/api/db-mock', supabaseMockRouter);
 
 // Instagram & WhatsApp webhooks are public (called by Meta servers)
 // But the rest of instagram/whatsapp routes need auth — handled inside the routers below
@@ -146,6 +149,15 @@ app.get("/", (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => {
-  console.log(`Reflx server running on http://localhost:${PORT}`);
+connectToDatabase().then(async () => {
+  // Initialize and optimize collections/indexes
+  await initializeDatabase();
+  
+  httpServer.listen(PORT, () => {
+    console.log(`Reflx server running on http://localhost:${PORT}`);
+  });
+}).catch(err => {
+  console.error('[MongoDB] ❌ Start aborted:', err.message);
+  process.exit(1);
 });
+

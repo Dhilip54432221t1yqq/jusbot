@@ -5,7 +5,7 @@ import {
   GitBranch, Info, ChevronDown, MessageSquare,
   HelpCircle
 } from 'lucide-react';
-import { supabase } from '../supabase';
+import { supabase } from '../db';
 import { useAuth } from '../contexts/AuthContext';
 
 import config from '../config';

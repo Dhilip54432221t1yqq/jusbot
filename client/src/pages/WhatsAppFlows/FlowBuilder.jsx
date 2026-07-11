@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { supabase } from '../../supabase';
+import { supabase } from '../../db';
 import config from '../../config';
 import { ArrowLeft, Save, Send, AlertCircle, Code, Layout, Settings, CheckCircle, Smartphone } from 'lucide-react';
 import FlowPreview from './FlowPreview';

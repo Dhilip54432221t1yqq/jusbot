@@ -1,6 +1,6 @@
 
 import './src/config/env.js';
-import { supabase } from './src/utils/supabase.js';
+import { supabase } from './src/utils/db.js';
 
 async function checkUserData() {
     console.log('--- Checking User IDs in Workspaces ---');

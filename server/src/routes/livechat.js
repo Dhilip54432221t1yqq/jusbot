@@ -9,8 +9,8 @@ const router = express.Router();
 router.get('/:workspaceId/conversations', requireWorkspaceAccess(), async (req, res) => {
   try {
     const { workspaceId } = req.params;
-    const { status, agentId } = req.query;
-    const conversations = await livechatService.getConversations(workspaceId, { status, assigned_agent_id: agentId });
+    const { status, agentId, channel } = req.query;
+    const conversations = await livechatService.getConversations(workspaceId, { status, assigned_agent_id: agentId, channel });
     res.json(conversations);
   } catch (error) {
     res.status(500).json({ error: error.message });

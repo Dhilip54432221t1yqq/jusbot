@@ -1,4 +1,4 @@
-import { supabase } from '../utils/supabase.js';
+import { supabase } from '../utils/db.js';
 
 /**
  * Middleware to verify that a requested resource belongs to a workspace

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../supabase';
+import { supabase } from '../../db';
 import { useParams, Link } from 'react-router-dom';
 import { ShoppingBag, Package, RefreshCw, MessageSquare } from 'lucide-react';
 import config from '../../config';

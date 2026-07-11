@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../supabase';
+import { supabase } from '../db';
 import config from '../config';
 
 const API_BASE = `${config.API_BASE}/ecommerce`;

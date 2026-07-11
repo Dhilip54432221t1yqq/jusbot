@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { supabase } from '../supabase';
+import { supabase } from '../db';
 import ContentManager from '../components/ContentManager';
 import { useParams } from 'react-router-dom';
 

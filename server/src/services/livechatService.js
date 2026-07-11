@@ -1,5 +1,6 @@
 import axios from 'axios';
-import { supabase } from '../utils/supabase.js';
+import { supabase } from '../utils/db.js';
+import { whatsappCloudService } from './whatsappCloudService.js';
 
 export const livechatService = {
   // Inbox / Conversations
@@ -16,6 +17,10 @@ export const livechatService = {
     
     if (filters.assigned_agent_id) {
       query = query.eq('assigned_agent_id', filters.assigned_agent_id);
+    }
+    
+    if (filters.channel && filters.channel !== 'all') {
+      query = query.eq('channel_type', filters.channel);
     }
 
     const { data, error } = await query;
@@ -151,7 +156,26 @@ export const livechatService = {
           // Optional: Mark message as failed in DB
         }
       }
-      // Add other channels like WhatsApp here...
+      
+      if (conversation.channel_type === 'whatsapp_cloud' && conversation.channels?.credentials) {
+        try {
+          const recipientPhone = conversation.contacts?.channel_user_id || conversation.contacts?.phone;
+          if (recipientPhone) {
+            const waResult = await whatsappCloudService.sendMessage(
+              conversation.channels.credentials, 
+              recipientPhone, 
+              messageData.content
+            );
+            
+            if (!waResult.success) {
+              console.error('Failed to send WhatsApp message:', waResult.error);
+            }
+          }
+        } catch (err) {
+          console.error('Exception sending WhatsApp message:', err.message);
+        }
+      }
+      // Add other channels here...
     }
 
     // Update conversation last message

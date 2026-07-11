@@ -1,8 +1,9 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import dagre from 'dagre';
-import { supabase } from './supabase';
+import { supabase } from './db';
 import { useAuth } from './contexts/AuthContext';
 import ReactFlow, {
   useNodesState,
@@ -22,7 +23,7 @@ import {
   HelpCircle, GitBranch, Shuffle, CornerDownRight, Mail, MessageCircle,
   FileText, Hash, Phone, Calendar, Clock, List, MapPin, Image as ImageIcon, EyeOff,
   Table2 as Sheet, Move, Network, ArrowUp, ArrowDown,
-  Camera, Video, Music, Smile, Upload, FolderOpen, AlertTriangle
+  Camera, Video, Music, Smile, Upload, FolderOpen, AlertTriangle, Search
 } from 'lucide-react';
 
 import StartNode from './nodes/StartNode';
@@ -511,8 +512,219 @@ const ActionSidebar = ({ node, updateNode, onOpenContentManager, workspaceId, on
   );
 };
 
+// ─── Variable Input with Left </> Injector ─────────────────────────────────────
+function LeftVariableInput({
+  value = '',
+  onChange,
+  placeholder = '',
+  maxLength = 60,
+  className = '',
+  fields = [],
+  onVariableCreated
+}) {
+  const { authFetch } = useAuth();
+  const { workspaceId } = useParams();
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newVar, setNewVar] = useState({ name: '', scope: 'user', type: 'text' });
+  const [creating, setCreating] = useState(false);
+
+  const containerRef = useRef(null);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setShowDropdown(false);
+        setShowCreateForm(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSelectVar = (varName) => {
+    const input = inputRef.current;
+    if (!input) return;
+    const start = input.selectionStart || 0;
+    const end = input.selectionEnd || 0;
+    const insertion = `{{${varName}}}`;
+    const newValue = value.substring(0, start) + insertion + value.substring(end);
+    if (newValue.length <= maxLength) {
+      onChange(newValue);
+    }
+    setShowDropdown(false);
+
+    setTimeout(() => {
+      input.focus();
+      const pos = start + insertion.length;
+      input.setSelectionRange(pos, pos);
+    }, 50);
+  };
+
+  const handleCreateVar = async (e) => {
+    e.preventDefault();
+    if (!newVar.name.trim()) return;
+    setCreating(true);
+    try {
+      const res = await authFetch(`${appConfig.API_BASE}/content/fields?workspace_id=${workspaceId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          field_name: newVar.name.trim().toLowerCase().replace(/\s+/g, '_'),
+          field_scope: newVar.scope,
+          variable_type: newVar.type,
+          workspace_id: workspaceId,
+          is_editable: true
+        })
+      });
+      if (res.ok) {
+        const created = await res.json();
+        if (onVariableCreated) {
+          onVariableCreated(created);
+        }
+        handleSelectVar(created.field_name);
+        setNewVar({ name: '', scope: 'user', type: 'text' });
+        setShowCreateForm(false);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <div ref={containerRef} className="relative w-full flex items-center">
+      <button
+        type="button"
+        onClick={() => setShowDropdown(!showDropdown)}
+        className="flex items-center justify-center border border-slate-200 border-r-0 rounded-l-lg bg-slate-50 hover:bg-slate-100 px-3 h-[34px] text-[10px] font-bold font-mono text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+        title="Insert Variable"
+      >
+        {"</>"}
+      </button>
+      <input
+        ref={inputRef}
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        className={`${className} w-full px-3 py-2 bg-white border border-slate-200 rounded-r-lg text-xs focus:outline-none focus:border-blue-400 h-[34px]`}
+      />
+
+      {showDropdown && (
+        <div className="absolute left-0 top-full mt-1.5 w-64 bg-white border border-slate-150 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+          {!showCreateForm ? (
+            <div className="flex flex-col">
+              <div className="bg-slate-50 px-3 py-1.5 border-b border-slate-100 flex items-center justify-between">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Select Variable</span>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateForm(true)}
+                  className="text-[9px] font-extrabold text-blue-600 hover:text-blue-700 bg-transparent border-0 cursor-pointer uppercase"
+                >
+                  + Create New
+                </button>
+              </div>
+              <div className="max-h-48 overflow-y-auto divide-y divide-slate-50">
+                {fields.length === 0 ? (
+                  <div className="p-3 text-center text-[10px] text-slate-400 italic">No variables saved.</div>
+                ) : (
+                  fields.map((field) => (
+                    <button
+                      key={field.id}
+                      type="button"
+                      onClick={() => handleSelectVar(field.field_name)}
+                      className="w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors flex items-center justify-between border-0 bg-transparent cursor-pointer"
+                    >
+                      <span className="text-[11px] font-mono text-slate-700">{field.field_name}</span>
+                      <span className="text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 tracking-wider">
+                        {field.field_scope}
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleCreateVar} className="p-3.5 space-y-3 m-0 text-left">
+              <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 mb-1">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">New Variable</span>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateForm(false)}
+                  className="text-[9px] font-bold text-slate-400 hover:text-slate-600 bg-transparent border-0 cursor-pointer uppercase"
+                >
+                  Cancel
+                </button>
+              </div>
+              <div>
+                <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. user_phone"
+                  required
+                  value={newVar.name}
+                  onChange={(e) => setNewVar({ ...newVar, name: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-150 rounded-lg px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:border-slate-800"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Scope</label>
+                  <select
+                    value={newVar.scope}
+                    onChange={(e) => setNewVar({ ...newVar, scope: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-150 rounded-lg px-2 py-1.5 text-xs font-semibold focus:outline-none focus:border-slate-800"
+                  >
+                    <option value="user">User</option>
+                    <option value="bot">Bot</option>
+                    <option value="system">System</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Type</label>
+                  <select
+                    value={newVar.type}
+                    onChange={(e) => setNewVar({ ...newVar, type: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-150 rounded-lg px-2 py-1.5 text-xs font-semibold focus:outline-none focus:border-slate-800"
+                  >
+                    <option value="text">Text</option>
+                    <option value="number">Number</option>
+                    <option value="boolean">Boolean</option>
+                  </select>
+                </div>
+              </div>
+              <button
+                type="submit"
+                disabled={creating}
+                className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white border-0 rounded-xl text-xs font-bold transition-all disabled:opacity-50 cursor-pointer"
+              >
+                {creating ? 'Creating...' : 'Create & Select'}
+              </button>
+            </form>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Question Sidebar ─────────────────────────────────────────────────────────
-const QuestionSidebar = ({ node, setNodes }) => {
+const QuestionSidebar = ({ node, setNodes, fields = [], nodes = [], setEdges, edges = [] }) => {
+  const [activeModal, setActiveModal] = useState(null); // 'answer' | 'dynamic' | 'nextStep'
+  const [editingAnswer, setEditingAnswer] = useState(null);
+  const [editingIndex, setEditingIndex] = useState(null); // to update existing answer
+  const [isDynamic, setIsDynamic] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const [activePopover, setActivePopover] = useState(null); // 'no_match' | 'no_input' | null
+  const [popoverAnchor, setPopoverAnchor] = useState(null); // { top, left }
+  const [connectingHandleId, setConnectingHandleId] = useState(null); // 'no_match' | 'no_input'
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
   const questionTypes = [
     { label: '+ Text', icon: FileText, type: 'text' },
     { label: '+ Number', icon: Hash, type: 'number' },
@@ -526,6 +738,614 @@ const QuestionSidebar = ({ node, setNodes }) => {
     { label: 'Silent', icon: EyeOff, type: 'silent' },
   ];
 
+  const qt = node.data.question_type;
+  const data = node.data;
+
+  const totalOptions = (data.answers || []).length + (data.dynamic_answers || []).length;
+  const isLimitReached = totalOptions >= 10;
+
+  const updateData = (updates) => {
+    setNodes(nds => nds.map(n => n.id === node.id ? { ...n, data: { ...n.data, ...updates } } : n));
+  };
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      const popoverEl = document.getElementById('question-popover');
+      if (activePopover && !event.target.closest('.popover-trigger') && (!popoverEl || !popoverEl.contains(event.target))) {
+        setActivePopover(null);
+        setPopoverAnchor(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [activePopover]);
+
+  const handleNoMatchClick = (e) => {
+    if (activePopover === 'no_match') {
+      setActivePopover(null);
+      setPopoverAnchor(null);
+    } else {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setActivePopover('no_match');
+      setPopoverAnchor({ top: rect.top, left: rect.left });
+      if (!data.no_match) {
+        updateData({ no_match: true });
+      }
+    }
+  };
+
+  const toggleNoMatchEnabled = (e) => {
+    e.stopPropagation();
+    const newValue = !data.no_match;
+    updateData({ no_match: newValue });
+    if (!newValue && activePopover === 'no_match') {
+      setActivePopover(null);
+      setPopoverAnchor(null);
+    }
+  };
+
+  const handleNoInputClick = (e) => {
+    if (activePopover === 'no_input') {
+      setActivePopover(null);
+      setPopoverAnchor(null);
+    } else {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setActivePopover('no_input');
+      setPopoverAnchor({ top: rect.top, left: rect.left });
+      if (!data.no_input) {
+        updateData({ no_input: true });
+      }
+    }
+  };
+
+  const toggleNoInputEnabled = (e) => {
+    e.stopPropagation();
+    const newValue = !data.no_input;
+    updateData({ no_input: newValue });
+    if (!newValue && activePopover === 'no_input') {
+      setActivePopover(null);
+      setPopoverAnchor(null);
+    }
+  };
+
+  const handleSelectNextStep = (handleId) => {
+    setConnectingHandleId(handleId);
+    setActiveModal('nextStep');
+  };
+
+  const noMatchEdge = edges.find(e => e.source === node.id && e.sourceHandle === 'no_match');
+  const noMatchConnectedNode = noMatchEdge ? nodes.find(n => n.id === noMatchEdge.target) : null;
+
+  const noInputEdge = edges.find(e => e.source === node.id && e.sourceHandle === 'no_input');
+  const noInputConnectedNode = noInputEdge ? nodes.find(n => n.id === noInputEdge.target) : null;
+
+  const handleOpenAnswer = (idx, dynamic = false) => {
+    setIsDynamic(dynamic);
+    setEditingIndex(idx);
+    if (idx === -1) {
+      if (isLimitReached) return;
+      setEditingAnswer(dynamic ? { text: '', description: '', value: '', limit: 10, field: '' } : { text: '', description: '', value: '' });
+    } else {
+      setEditingAnswer(dynamic ? data.dynamic_answers[idx] : data.answers[idx]);
+    }
+    setActiveModal(dynamic ? 'dynamic' : 'answer');
+  };
+
+  const handleSaveAnswer = () => {
+    if (isDynamic) {
+      const arr = [...(data.dynamic_answers || [])];
+      if (editingIndex === -1) arr.push({ ...editingAnswer, id: Date.now() });
+      else arr[editingIndex] = editingAnswer;
+      updateData({ dynamic_answers: arr });
+    } else {
+      const arr = [...(data.answers || [])];
+      if (editingIndex === -1) arr.push({ ...editingAnswer, id: Date.now() });
+      else arr[editingIndex] = editingAnswer;
+      updateData({ answers: arr });
+    }
+    setActiveModal(null);
+  };
+
+  if (qt) {
+    const TypeIcon = questionTypes.find(q => q.type === qt)?.icon || FileText;
+    
+    return (
+      <div className="flex flex-col h-full bg-white relative">
+        <div className="flex items-center gap-2 p-3 border-b border-slate-100 mb-4">
+           <TypeIcon size={16} className="text-slate-500" />
+           <span className="text-sm font-semibold text-slate-800 capitalize">{qt}</span>
+           <button onClick={() => updateData({ question_type: null })} className="ml-auto text-[10px] text-red-500 font-bold hover:underline">Change</button>
+        </div>
+
+        <div className="space-y-4 px-1">
+          <div className="relative">
+            <textarea 
+              className="w-full pl-3 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-blue-400 min-h-[80px]"
+              placeholder="Enter a question ..."
+              value={data.question_text || ''}
+              onChange={e => updateData({ question_text: e.target.value })}
+            />
+            <button type="button" className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 font-mono text-[10px]">&lt;/&gt;</button>
+          </div>
+
+          <div>
+            <label className="text-[10px] text-slate-600 block mb-1">Select button text</label>
+            <div className="relative">
+              <input 
+                className="w-full pl-3 pr-10 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-blue-400"
+                placeholder="Select"
+                value={data.button_text !== undefined ? data.button_text : 'Select'}
+                maxLength={20}
+                onChange={e => updateData({ button_text: e.target.value })}
+              />
+              <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 font-mono text-[10px]">&lt;/&gt;</button>
+              <div className="text-[9px] text-slate-400 text-right mt-1">{(data.button_text !== undefined ? data.button_text : 'Select').length} / 20</div>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[10px] text-slate-600 block mb-1">Save Response to</label>
+            <select 
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-blue-400"
+              value={data.save_response_to || ''}
+              onChange={e => updateData({ save_response_to: e.target.value })}
+            >
+              <option value="">Enter Field Name</option>
+              {fields.map(f => <option key={f.id} value={f.name}>{f.name}</option>)}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            {(data.answers || []).map((ans, i) => (
+               <div key={ans.id} onClick={() => handleOpenAnswer(i, false)} className="p-2 border border-slate-200 rounded bg-slate-50 text-xs cursor-pointer hover:bg-slate-100 flex justify-between">
+                 <span>{ans.text || 'Empty Answer'}</span>
+                 <span className="text-slate-400">{ans.nextStepId ? 'Connected' : 'Not connected'}</span>
+               </div>
+            ))}
+            {(data.dynamic_answers || []).map((ans, i) => (
+               <div key={ans.id} onClick={() => handleOpenAnswer(i, true)} className="p-2 border border-slate-200 rounded bg-slate-50 text-xs cursor-pointer hover:bg-slate-100 flex justify-between">
+                 <span>{ans.text || 'Dynamic'} (Dynamic)</span>
+                 <span className="text-slate-400">{ans.nextStepId ? 'Connected' : 'Not connected'}</span>
+               </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button 
+              disabled={isLimitReached}
+              onClick={() => handleOpenAnswer(-1, false)} 
+              className={`py-2 border border-dashed border-slate-300 rounded-lg text-slate-500 text-xs font-semibold ${isLimitReached ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-50'}`}
+            >
+              + Answer
+            </button>
+            <button 
+              disabled={isLimitReached}
+              onClick={() => handleOpenAnswer(-1, true)} 
+              className={`py-2 border border-dashed border-slate-300 rounded-lg text-slate-500 text-xs font-semibold ${isLimitReached ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-50'}`}
+            >
+              + Dynamic Answer
+            </button>
+          </div>
+          {isLimitReached && <div className="text-[9px] text-red-500 font-bold text-center mt-1">Options limit of 10 reached</div>}
+
+          <button onClick={() => updateData({ skip_button: true })} className="w-full py-2 border border-dashed border-slate-300 rounded-lg text-slate-500 text-xs hover:bg-slate-50">
+            + Add Skip Button
+          </button>
+
+          <div className="space-y-3 mt-4">
+            <button
+              type="button"
+              onClick={handleNoMatchClick}
+              className="popover-trigger w-full flex items-center justify-between px-4 py-2.5 rounded-xl border text-xs font-bold transition-all bg-white cursor-pointer border-slate-200 text-slate-700 hover:border-slate-350"
+              style={{
+                borderColor: data.no_match ? '#3b82f6' : '#e2e8f0',
+                color: data.no_match ? '#2563eb' : '#334155'
+              }}
+            >
+              <span>No Match</span>
+              <div
+                onClick={toggleNoMatchEnabled}
+                className="w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center transition-colors"
+                style={{
+                  borderColor: data.no_match ? '#3b82f6' : '#cbd5e1'
+                }}
+              >
+                {data.no_match && <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleNoInputClick}
+              className="popover-trigger w-full flex items-center justify-between px-4 py-2.5 rounded-xl border text-xs font-bold transition-all bg-white cursor-pointer border-slate-200 text-slate-700 hover:border-slate-350"
+              style={{
+                borderColor: data.no_input ? '#3b82f6' : '#e2e8f0',
+                color: data.no_input ? '#2563eb' : '#334155'
+              }}
+            >
+              <span>No Input</span>
+              <div
+                onClick={toggleNoInputEnabled}
+                className="w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center transition-colors"
+                style={{
+                  borderColor: data.no_input ? '#3b82f6' : '#cbd5e1'
+                }}
+              >
+                {data.no_input && <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
+              </div>
+            </button>
+          </div>
+
+          <div className="border-t border-slate-100 mt-4 pt-2">
+            <button className="flex items-center justify-between w-full py-2 text-xs text-slate-700 font-medium">
+              Pagination <ChevronRight size={14} className="text-slate-400"/>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="flex items-center justify-between w-full py-2 text-xs text-slate-700 font-medium border-t border-slate-50"
+            >
+              <span>Advanced Settings</span>
+              {showAdvanced ? <ChevronDown size={14} className="text-slate-400"/> : <ChevronRight size={14} className="text-slate-400"/>}
+            </button>
+            
+            {showAdvanced && (
+              <div className="space-y-4 pt-3 pb-2 border-t border-slate-50 mt-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                <div>
+                  <label className="text-[10px] text-slate-500 block mb-1">Input complete timeout</label>
+                  <select
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-blue-400 text-slate-700 font-medium cursor-pointer"
+                    value={data.input_timeout || 'None'}
+                    onChange={e => updateData({ input_timeout: e.target.value })}
+                  >
+                    <option value="None">None</option>
+                    <option value="10 Seconds">10 Seconds</option>
+                    <option value="15 Seconds">15 Seconds</option>
+                    <option value="20 Seconds">20 Seconds</option>
+                    <option value="25 Seconds">25 Seconds</option>
+                    <option value="30 Seconds">30 Seconds</option>
+                    <option value="40 Seconds">40 Seconds</option>
+                    <option value="50 Seconds">50 Seconds</option>
+                    <option value="60 Seconds">60 Seconds</option>
+                    <option value="70 Seconds">70 Seconds</option>
+                    <option value="80 Seconds">80 Seconds</option>
+                    <option value="90 Seconds">90 Seconds</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-500 block mb-1">Header</label>
+                  <LeftVariableInput
+                    value={data.header || ''}
+                    onChange={val => updateData({ header: val })}
+                    placeholder="add Header"
+                    maxLength={60}
+                    fields={fields}
+                  />
+                  <div className="text-[9px] text-slate-400 text-right mt-1">{(data.header || '').length} / 60</div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-500 block mb-1">Footer</label>
+                  <LeftVariableInput
+                    value={data.footer || ''}
+                    onChange={val => updateData({ footer: val })}
+                    placeholder="add Footer"
+                    maxLength={60}
+                    fields={fields}
+                  />
+                  <div className="text-[9px] text-slate-400 text-right mt-1">{(data.footer || '').length} / 60</div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-500 block mb-1">Quick Answer Style</label>
+                  <select
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-blue-400 text-slate-700 font-medium cursor-pointer"
+                    value={data.quick_answer_style || 'Default'}
+                    onChange={e => updateData({ quick_answer_style: e.target.value })}
+                  >
+                    <option value="Default">Default</option>
+                    <option value="Buttons">Buttons</option>
+                  </select>
+                  {data.quick_answer_style === 'Buttons' && (
+                    <p className="text-[10px] text-slate-500 mt-1.5 italic">
+                      Only show the first 3 buttons
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Modals wrapped in Portal */}
+        {activeModal && activeModal !== 'nextStep' && createPortal(
+          <div className="fixed inset-0 z-[100] bg-slate-900/20 backdrop-blur-sm flex items-center justify-center p-4" onClick={(e) => { if(e.target === e.currentTarget) setActiveModal(null); }}>
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-[600px] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between p-4 border-b border-slate-100">
+                <h3 className="text-sm font-semibold">{isDynamic ? 'Edit Dynamic Answer' : 'Edit Answer'}</h3>
+                <button onClick={() => setActiveModal(null)} className="text-slate-400 hover:text-slate-600"><X size={16}/></button>
+              </div>
+              <div className="p-6 space-y-5 overflow-y-auto max-h-[70vh]">
+                
+                {isDynamic && (
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-600 mb-1 flex items-center gap-1">For Each <span className="text-pink-500">{'{{ITEM}}'}</span> In</label>
+                    <select className="w-full p-2.5 border border-slate-200 rounded-lg text-xs" value={editingAnswer.field || ''} onChange={e => setEditingAnswer({...editingAnswer, field: e.target.value})}>
+                      <option value="">Choose Custom Field</option>
+                      {fields.map(f => <option key={f.id} value={f.name}>{f.name}</option>)}
+                    </select>
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-600 mb-1 block">Answer Text</label>
+                  <div className="relative">
+                    <input className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs pr-10" placeholder="Option" maxLength={20} value={editingAnswer.text || ''} onChange={e => setEditingAnswer({...editingAnswer, text: e.target.value})} />
+                    <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 font-mono text-[10px]">&lt;/&gt;</button>
+                  </div>
+                  <div className="text-[9px] text-slate-400 text-right mt-1">{(editingAnswer.text || '').length} / 20</div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-600 mb-1 flex items-center gap-1">Description <div className="w-3 h-3 bg-green-500 rounded-full flex items-center justify-center"><Phone size={8} className="text-white"/></div></label>
+                  <div className="relative">
+                    <input className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs pr-10" placeholder="Enter a description" maxLength={72} value={editingAnswer.description || ''} onChange={e => setEditingAnswer({...editingAnswer, description: e.target.value})} />
+                    <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 font-mono text-[10px]">&lt;/&gt;</button>
+                  </div>
+                  <div className="text-[9px] text-slate-400 text-right mt-1">{(editingAnswer.description || '').length} / 72</div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-600 mb-1 block">Answer Value</label>
+                  <div className="relative">
+                    <input className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs pr-10" placeholder="Enter a value" maxLength={100} value={editingAnswer.value || ''} onChange={e => setEditingAnswer({...editingAnswer, value: e.target.value})} />
+                    <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 font-mono text-[10px]">&lt;/&gt;</button>
+                  </div>
+                  {isDynamic && <div className="text-[9px] text-slate-400 text-right mt-1">{(editingAnswer.value || '').length} / 100</div>}
+                </div>
+
+                {isDynamic && (
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-600 mb-1 block">Limit to number of items</label>
+                    <select className="w-full p-2.5 border border-slate-200 rounded-lg text-xs" value={editingAnswer.limit || 10} onChange={e => setEditingAnswer({...editingAnswer, limit: Number(e.target.value)})}>
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={30}>30</option>
+                    </select>
+                  </div>
+                )}
+
+                <div className="pt-2">
+                  <label className="text-[10px] text-slate-600 mb-2 block">When the response contains the answer text</label>
+                  <button onClick={() => setActiveModal('nextStep')} className="w-full py-3 border border-dashed border-blue-200 text-blue-500 text-xs hover:bg-blue-50 rounded-lg font-medium">
+                    {editingAnswer.nextStepId ? `Connected to ${nodes.find(n => n.id === editingAnswer.nextStepId)?.type || 'Step'}` : 'Select Next Step'}
+                  </button>
+                </div>
+
+              </div>
+              <div className="p-4 border-t border-slate-100 flex justify-end gap-2 bg-slate-50">
+                <button onClick={() => setActiveModal(null)} className="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-xs font-medium hover:bg-white bg-white">Cancel</button>
+                <button onClick={handleSaveAnswer} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700">Save</button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+        {/* Select Next Step Modal wrapped in Portal */}
+        {activeModal === 'nextStep' && createPortal(
+          <div className="fixed inset-0 z-[110] bg-slate-900/20 backdrop-blur-sm flex items-center justify-center p-4" onClick={(e) => { 
+            if(e.target === e.currentTarget) {
+              if (connectingHandleId) {
+                setActiveModal(null);
+                setConnectingHandleId(null);
+              } else {
+                setActiveModal(isDynamic ? 'dynamic' : 'answer');
+              }
+            }
+          }}>
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-[800px] overflow-hidden flex flex-col min-h-[500px]">
+              <div className="flex items-center justify-between p-4 border-b border-slate-100">
+                <h3 className="text-sm font-semibold">Select Next Step</h3>
+                <button onClick={() => {
+                  if (connectingHandleId) {
+                    setActiveModal(null);
+                    setConnectingHandleId(null);
+                  } else {
+                    setActiveModal(isDynamic ? 'dynamic' : 'answer');
+                  }
+                }} className="text-slate-400 hover:text-slate-600"><X size={16}/></button>
+              </div>
+              
+              <div className="p-6 overflow-y-auto space-y-6">
+                <div>
+                  <h4 className="text-[11px] font-bold text-slate-700 mb-3">New Step</h4>
+                  <div className="grid grid-cols-4 gap-3">
+                    {[
+                      { type: 'message', label: 'Send Message', icon: MessageSquare, color: 'text-slate-500' },
+                      { type: 'question', label: 'Question', icon: HelpCircle, color: 'text-blue-500', bg: 'bg-blue-50' },
+                      { type: 'action', label: 'Action', icon: Zap, color: 'text-amber-500', bg: 'bg-amber-50' },
+                      { type: 'condition', label: 'Condition', icon: GitBranch, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+                      { type: 'split', label: 'Split', icon: Shuffle, color: 'text-purple-500', bg: 'bg-purple-50' },
+                      { type: 'send_email', label: 'Send Email', icon: Mail, color: 'text-rose-400', bg: 'bg-rose-50' },
+                      { type: 'go_to', label: 'Goto', icon: CornerDownRight, color: 'text-pink-500', bg: 'bg-pink-50' },
+                    ].map(step => (
+                      <button key={step.type} 
+                        onClick={() => {
+                           const newId = `${step.type}-${Date.now()}`;
+                           const newNode = { id: newId, type: step.type, position: { x: (node.position?.x || 0) + 350, y: node.position?.y || 0 }, data: { label: step.label, components: [] } };
+                           setNodes(nds => [...nds, newNode]);
+                           if (setEdges) {
+                             const handleId = connectingHandleId || `ans-${editingAnswer.id}`;
+                             setEdges(eds => {
+                               const filtered = eds.filter(e => !(e.source === node.id && e.sourceHandle === handleId));
+                               return [...filtered, { id: `e-${node.id}-${newId}`, source: node.id, target: newId, sourceHandle: handleId }];
+                             });
+                           }
+                           if (connectingHandleId) {
+                             setActiveModal(null);
+                             setConnectingHandleId(null);
+                           } else {
+                             setEditingAnswer({...editingAnswer, nextStepId: newId});
+                             setActiveModal(isDynamic ? 'dynamic' : 'answer');
+                           }
+                        }}
+                        className="flex items-center gap-3 p-3 border border-dashed border-slate-200 rounded-lg hover:border-blue-300 hover:bg-slate-50 text-left">
+                        <div className={`w-8 h-8 rounded flex items-center justify-center ${step.bg || 'bg-slate-100'} ${step.color}`}><step.icon size={14}/></div>
+                        <span className="text-xs font-semibold text-slate-700">{step.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-[11px] font-bold text-slate-700">Existing Steps</h4>
+                    <div className="relative w-64">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
+                      <input 
+                        className="w-full pl-9 pr-3 py-1.5 border border-slate-200 rounded text-xs focus:outline-none focus:border-blue-400"
+                        placeholder="Search name"
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-4 gap-3">
+                    {nodes.filter(n => n.id !== node.id && (n.data?.label || n.type).toLowerCase().includes(searchTerm.toLowerCase())).map(n => (
+                      <button key={n.id} 
+                        onClick={() => {
+                          if (setEdges) {
+                            const handleId = connectingHandleId || `ans-${editingAnswer.id}`;
+                            setEdges(eds => {
+                              const filtered = eds.filter(e => !(e.source === node.id && e.sourceHandle === handleId));
+                              return [...filtered, { id: `e-${node.id}-${n.id}`, source: node.id, target: n.id, sourceHandle: handleId }];
+                            });
+                          }
+                          if (connectingHandleId) {
+                            setActiveModal(null);
+                            setConnectingHandleId(null);
+                          } else {
+                            setEditingAnswer({...editingAnswer, nextStepId: n.id});
+                            setActiveModal(isDynamic ? 'dynamic' : 'answer');
+                          }
+                        }}
+                        className="flex items-center gap-3 p-3 border border-blue-200 bg-blue-50/50 rounded-lg hover:border-blue-400 text-left">
+                        <div className="w-6 h-6 rounded bg-blue-100 text-blue-500 flex items-center justify-center">
+                          {n.type === 'message' && <MessageSquare size={12}/>}
+                          {n.type === 'question' && <HelpCircle size={12}/>}
+                          {n.type === 'action' && <Zap size={12}/>}
+                          {n.type === 'condition' && <GitBranch size={12}/>}
+                          {n.type === 'split' && <Shuffle size={12}/>}
+                          {n.type === 'send_email' && <Mail size={12}/>}
+                          {n.type === 'go_to' && <CornerDownRight size={12}/>}
+                        </div>
+                        <span className="text-xs font-medium text-slate-700 truncate">{n.data?.label || n.type}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+        {/* Popovers Portal */}
+        {activePopover && popoverAnchor && createPortal(
+          <div
+            id="question-popover"
+            className="fixed bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-100 p-5 z-[100] animate-in fade-in slide-in-from-right-2 duration-150 text-left"
+            style={{
+              top: `${popoverAnchor.top - 20}px`,
+              left: `${popoverAnchor.left - 340}px`,
+              width: '320px',
+            }}
+          >
+            {/* Arrow */}
+            <div className="absolute top-7 -right-2 w-4 h-4 bg-white rotate-45 border-t border-r border-slate-100" />
+
+            {activePopover === 'no_match' && (
+              <div className="relative space-y-3">
+                <div>
+                  <span className="text-xs font-bold text-slate-800">Retry message</span>{' '}
+                  <span className="text-[10px] text-slate-450 font-medium">If answer is incorrect</span>
+                </div>
+                <VariableInput
+                  value={data.no_match_retry_message || ''}
+                  onChange={val => updateData({ no_match_retry_message: val })}
+                  placeholder="Retry message"
+                  type="textarea"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs pr-10 focus:outline-none focus:border-blue-400 min-h-[60px]"
+                  fields={fields}
+                />
+                <div className="flex items-center gap-2 text-xs text-slate-600 pt-1 font-medium">
+                  <span>If no match on</span>
+                  <select
+                    className="bg-transparent border-b border-slate-350 py-0.5 focus:outline-none text-slate-800 font-semibold cursor-pointer"
+                    value={data.no_match_retry_limit || 'second time'}
+                    onChange={e => updateData({ no_match_retry_limit: e.target.value })}
+                  >
+                    <option value="first time">first time</option>
+                    <option value="second time">second time</option>
+                    <option value="third time">third time</option>
+                    <option value="always">always</option>
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleSelectNextStep('no_match')}
+                  className="w-full py-3 border border-dashed border-blue-200 text-blue-500 rounded-xl text-xs font-bold hover:bg-blue-50/50 transition-all flex items-center justify-center gap-1 cursor-pointer mt-2"
+                >
+                  {noMatchConnectedNode ? `Connected: ${noMatchConnectedNode.data?.label || noMatchConnectedNode.type}` : 'Select Next Step'}
+                </button>
+              </div>
+            )}
+
+            {activePopover === 'no_input' && (
+              <div className="relative space-y-4">
+                <div className="text-xs font-bold text-slate-800">If no input</div>
+                <button
+                  type="button"
+                  onClick={() => handleSelectNextStep('no_input')}
+                  className="w-full py-3 border border-dashed border-blue-200 text-blue-500 rounded-xl text-xs font-bold hover:bg-blue-50/50 transition-all flex items-center justify-center gap-1 cursor-pointer"
+                >
+                  {noInputConnectedNode ? `Connected: ${noInputConnectedNode.data?.label || noInputConnectedNode.type}` : 'Select Next Step'}
+                </button>
+                <div className="h-px bg-slate-100" />
+                <div>
+                  <div className="text-[11px] font-bold text-slate-500 mb-2">User input expires in</div>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      min="1"
+                      className="w-20 px-3 py-2 bg-slate-50 border border-slate-150 rounded-lg text-xs font-bold text-slate-700 text-center focus:outline-none"
+                      value={data.no_input_expire_value ?? 1}
+                      onChange={e => updateData({ no_input_expire_value: Number(e.target.value) })}
+                    />
+                    <select
+                      className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none font-semibold text-slate-600 cursor-pointer"
+                      value={data.no_input_expire_unit || 'hours'}
+                      onChange={e => updateData({ no_input_expire_unit: e.target.value })}
+                    >
+                      <option value="minutes">minutes</option>
+                      <option value="hours">hours</option>
+                      <option value="days">days</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>,
+          document.body
+        )}
+
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full">
       <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-5">
@@ -533,7 +1353,7 @@ const QuestionSidebar = ({ node, setNodes }) => {
       </div>
       <div className="grid grid-cols-2 gap-2.5">
         {questionTypes.map(qt => (
-          <button key={qt.type} onClick={() => setNodes(nds => nds.map(n => n.id === node.id ? { ...n, data: { ...n.data, question_type: qt.type, question_text: `Collect ${qt.type} input...` } } : n))}
+          <button key={qt.type} onClick={() => updateData({ question_type: qt.type, question_text: `Collect ${qt.type} input...` })}
             className="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 bg-white hover:border-green-400 hover:bg-green-50 transition-all gap-2 group">
             <div className="text-slate-400 group-hover:text-green-600 transition-colors"><qt.icon size={18} strokeWidth={1.5} /></div>
             <span className="text-[11px] font-semibold text-slate-600 text-center">{qt.label}</span>
@@ -1548,6 +2368,7 @@ function FlowBuilderContent() {
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [hoveredStep, setHoveredStep] = useState(null);
   const [flowName, setFlowName] = useState('Untitled Flow');
+  const [flowStatus, setFlowStatus] = useState('draft');
   const [saving, setSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [editingActionIndex, setEditingActionIndex] = useState(null);
@@ -1647,7 +2468,7 @@ function FlowBuilderContent() {
       };
 
       if (type === 'text') {
-        newComp.text = '';
+        newComp.text = 'Please enter your message';
         newComp.buttons = [];
       } else if (type === 'dynamic') {
         newComp.method = 'POST';
@@ -1785,6 +2606,7 @@ function FlowBuilderContent() {
       .then(({ data }) => {
         if (!data) return;
         setFlowName(data.name || 'Untitled Flow');
+        setFlowStatus(data.status || 'draft');
         if (data.flow_data) {
           setNodes(data.flow_data.nodes || initialNodes);
           setEdges(data.flow_data.edges || []);
@@ -1867,10 +2689,55 @@ function FlowBuilderContent() {
     setSaving(true);
     const viewport = getViewport();
     try {
-      const { error } = await supabase.from('flows').update({ flow_data: { nodes, edges, viewport }, nodes: nodes.length, updated_at: new Date() }).eq('id', id).eq('workspace_id', workspaceId);
-      if (error) throw error;
+      const response = await authFetch(`${appConfig.API_BASE}/flows/${id}/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nodes, edges, version: 1 })
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save flow');
+      }
       setIsDirty(false);
-    } catch (err) { alert(`Failed to save: ${err.message}`); } finally { setSaving(false); }
+    } catch (err) { 
+      alert(`Failed to save: ${err.message}`); 
+    } finally { 
+      setSaving(false); 
+    }
+  };
+
+  const publishFlow = async () => {
+    if (!id) return;
+    setSaving(true);
+    try {
+      // 1. Save the draft version (version 1) first
+      const saveResponse = await authFetch(`${appConfig.API_BASE}/flows/${id}/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nodes, edges, version: 1 })
+      });
+      if (!saveResponse.ok) {
+        const errorData = await saveResponse.json();
+        throw new Error(errorData.error || 'Failed to save draft before publishing');
+      }
+
+      // 2. Copy/Publish draft version (version 1) to published version (version 0)
+      const publishResponse = await authFetch(`${appConfig.API_BASE}/flows/${id}/publish`, {
+        method: 'POST'
+      });
+      if (!publishResponse.ok) {
+        const errorData = await publishResponse.json();
+        throw new Error(errorData.error || 'Failed to publish flow');
+      }
+
+      setFlowStatus('published');
+      setIsDirty(false);
+      alert('Flow published successfully!');
+    } catch (err) { 
+      alert(`Failed to publish: ${err.message}`); 
+    } finally { 
+      setSaving(false); 
+    }
   };
 
   const handleBack = () => {
@@ -1949,9 +2816,9 @@ function FlowBuilderContent() {
               <p className="text-[10px] text-slate-400 font-medium mt-0.5">Flow Builder</p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 px-3 py-1 bg-green-50 border border-green-100 rounded-full ml-1">
-            <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
-            <span className="text-[10px] font-bold text-green-600 uppercase tracking-wider">DRAFT</span>
+          <div className={`flex items-center gap-1.5 px-3 py-1 border rounded-full ml-1 ${flowStatus === 'published' ? 'bg-blue-50 border-blue-100 text-blue-600' : 'bg-green-50 border-green-100 text-green-600'}`}>
+            <div className={`w-1.5 h-1.5 rounded-full ${flowStatus === 'published' ? 'bg-blue-500' : 'bg-green-500'}`} />
+            <span className="text-[10px] font-bold uppercase tracking-wider">{flowStatus}</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -1963,7 +2830,7 @@ function FlowBuilderContent() {
             <Save className="w-4 h-4" />
             <span>{saving ? 'Saving...' : isDirty ? 'Save Changes' : 'All Saved'}</span>
           </button>
-          <button className="flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-green-200 transition-all active:scale-95">
+          <button onClick={publishFlow} disabled={saving} className="flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-green-200 transition-all active:scale-95 disabled:opacity-50">
             Publish Flow
           </button>
         </div>
@@ -2226,7 +3093,6 @@ function FlowBuilderContent() {
 
                               {comp.type === 'dynamic' && (
                                 <div className="space-y-3">
-                                  <p className="text-[10px] text-slate-500 leading-normal">Configure HTTP request to dynamically fetch and render message template variables.</p>
                                   {comp.url ? (
                                     <div className="p-2 bg-slate-50 border border-slate-150 rounded-lg text-[10px] font-semibold text-slate-700 truncate font-mono">
                                       <span className="text-blue-600 font-extrabold uppercase mr-1">{comp.method || 'POST'}</span> {comp.url}
@@ -2483,7 +3349,6 @@ function FlowBuilderContent() {
 
                                 const mediaTypes = [
                                   { id: 'image', label: 'Image', icon: ImageIcon },
-                                  { id: 'photo', label: 'Photo', icon: Camera },
                                   { id: 'video', label: 'Video', icon: Video },
                                   { id: 'audio', label: 'Audio', icon: Music },
                                   { id: 'sticker', label: 'Sticker', icon: Smile },
@@ -2558,7 +3423,7 @@ function FlowBuilderContent() {
                                   <div className="space-y-3 relative group">
                                     {/* Hover Selector Row / Type Switcher */}
                                     <div className={`p-1 bg-slate-100 rounded-xl border border-slate-200 flex justify-between gap-1 transition-all duration-300 ${
-                                      mediaType ? 'opacity-0 h-0 overflow-hidden group-hover:opacity-100 group-hover:h-auto group-hover:p-1 group-hover:mb-2' : 'opacity-100 mb-2'
+                                      mediaType ? 'hidden' : 'opacity-100 mb-2'
                                     }`}>
                                       {mediaTypes.map((t) => {
                                         const IconComp = t.icon;
@@ -2599,9 +3464,9 @@ function FlowBuilderContent() {
                                           <button
                                             type="button"
                                             onClick={() => handleSelectType('')}
-                                            className="text-[9px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer"
+                                            className="text-[9px] font-bold text-red-600 hover:text-red-800 cursor-pointer"
                                           >
-                                            Change Type
+                                            Remove
                                           </button>
                                         </div>
 
@@ -2841,7 +3706,7 @@ function FlowBuilderContent() {
                                   <div className="space-y-3 relative group">
                                     {/* Hover Selector Grid / Type Switcher */}
                                     <div className={`p-2 bg-slate-100 rounded-xl border border-slate-200 grid grid-cols-2 gap-2 transition-all duration-300 ${
-                                      otherType ? 'opacity-0 h-0 overflow-hidden group-hover:opacity-100 group-hover:h-auto group-hover:p-2 group-hover:mb-2' : 'opacity-100 mb-2'
+                                      otherType ? 'hidden' : 'opacity-100 mb-2'
                                     }`}>
                                       {otherTypesList.map((t) => {
                                         const IconComp = t.icon;
@@ -2881,9 +3746,9 @@ function FlowBuilderContent() {
                                           <button
                                             type="button"
                                             onClick={() => handleSelectOtherType('')}
-                                            className="text-[9px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer"
+                                            className="text-[9px] font-bold text-red-600 hover:text-red-800 cursor-pointer"
                                           >
-                                            Change Type
+                                            Remove
                                           </button>
                                         </div>
 
@@ -3137,7 +4002,7 @@ function FlowBuilderContent() {
                 updateNode={(data) => setNodes(nds => nds.map(n => n.id === selectedNode.id ? { ...n, data: { ...n.data, ...data } } : n))}
               />
             )}
-            {selectedNode.type === 'question' && <QuestionSidebar node={selectedNode} setNodes={setNodes} />}
+            {selectedNode.type === 'question' && <QuestionSidebar key={selectedNode.id} node={selectedNode} setNodes={setNodes} fields={fields} nodes={nodes} setEdges={setEdges} edges={edges} />}
             {selectedNode.type === 'condition' && <ConditionSidebar node={selectedNode} setNodes={setNodes} />}
             {selectedNode.type === 'split' && <SplitSidebar node={selectedNode} setNodes={setNodes} />}
             {selectedNode.type === 'send_email' && <SendEmailSidebar node={selectedNode} setNodes={setNodes} />}

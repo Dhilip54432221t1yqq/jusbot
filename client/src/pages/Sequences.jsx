@@ -4,7 +4,7 @@ import {
   Plus, Search, Edit2, Trash2, Info, ChevronRight, 
   MessageSquare, Clock, Layout, Play, Send, Zap, Activity
 } from 'lucide-react';
-import { supabase } from '../supabase';
+import { supabase } from '../db';
 import { useAuth } from '../contexts/AuthContext';
 
 import config from '../config';

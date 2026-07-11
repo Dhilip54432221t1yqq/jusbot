@@ -1,4 +1,4 @@
-import { supabase } from './src/utils/supabase.js';
+import { supabase } from './src/utils/db.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';

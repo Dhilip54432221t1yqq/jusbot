@@ -5,7 +5,7 @@ import {
   Clock, MessageCircle, Instagram, Facebook, Tag, Globe, ShoppingCart,
   FileText, ChevronDown, GitBranch, Info
 } from 'lucide-react';
-import { supabase } from '../supabase';
+import { supabase } from '../db';
 import { useAuth } from '../contexts/AuthContext';
 
 import config from '../config';

@@ -1,4 +1,4 @@
-import { supabase } from '../utils/supabase.js';
+import { supabase } from '../utils/db.js';
 
 /**
  * Middleware to verify that the logged-in user has access to a workspace.

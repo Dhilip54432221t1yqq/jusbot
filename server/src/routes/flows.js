@@ -1,5 +1,5 @@
 import express from 'express';
-import { supabase } from '../utils/supabase.js';
+import { supabase } from '../utils/db.js';
 import { requireResourceOwnership } from '../middleware/requireResourceOwnership.js';
 
 const router = express.Router();

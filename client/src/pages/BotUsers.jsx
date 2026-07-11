@@ -26,11 +26,13 @@ const BotUsers = () => {
     const [showImportModal, setShowImportModal] = useState(false);
     const [showCreateUserModal, setShowCreateUserModal] = useState(false);
     const [newUserForm, setNewUserForm] = useState({
-        name: '',
+        firstName: '',
+        lastName: '',
         email: '',
         phone: '',
-        channel: 'whatsapp',
-        channel_user_id: ''
+        countryCode: '+1',
+        gender: 'Other',
+        consent: false
     });
     const [creatingUser, setCreatingUser] = useState(false);
     const [showCreateSegmentModal, setShowCreateSegmentModal] = useState(false);
@@ -133,27 +135,39 @@ const BotUsers = () => {
     };
 
     const handleCreateUser = async () => {
-        if (!newUserForm.name) return; // Basic validation
+        if (!newUserForm.firstName || !newUserForm.consent) return;
         setCreatingUser(true);
         try {
             const body = {
                 workspace_id: workspaceId,
-                ...newUserForm,
-                channel_user_id: newUserForm.channel_user_id || `usr_${Date.now()}`
+                name: `${newUserForm.firstName} ${newUserForm.lastName}`.trim(),
+                email: newUserForm.email,
+                phone: `${newUserForm.countryCode}${newUserForm.phone}`,
+                channel: 'whatsapp',
+                channel_user_id: `usr_${Date.now()}`,
+                metadata: { gender: newUserForm.gender }
             };
 
             const res = await authFetch(`${API_BASE}/upsert`, {
                 method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify(body)
             });
 
             if (res.ok) {
                 setShowCreateUserModal(false);
-                setNewUserForm({ name: '', email: '', phone: '', channel: 'whatsapp', channel_user_id: '' });
+                setNewUserForm({ firstName: '', lastName: '', email: '', phone: '', countryCode: '+1', gender: 'Other', consent: false });
                 fetchContacts();
+            } else {
+                const errorData = await res.json();
+                console.error("Failed to create user:", errorData);
+                alert("Failed to create user. Please check console for details.");
             }
         } catch (err) {
             console.error('Failed to create user:', err);
+            alert("Network error while creating user.");
         } finally {
             setCreatingUser(false);
         }
@@ -562,77 +576,150 @@ const BotUsers = () => {
                 </div>
             )}
 
-            {/* Create User Modal */}
+            {/* Create User Modal / Full Page Overlay */}
             {showCreateUserModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-8">
-                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setShowCreateUserModal(false)}></div>
-                    <div className="relative w-full max-w-md bg-white rounded-[2rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-                        <div className="p-8">
-                            <div className="flex items-center justify-between mb-6">
-                                <div>
-                                    <h3 className="text-xl font-bold text-slate-800" style={{ fontFamily: "'Sora', sans-serif" }}>Create Bot User</h3>
-                                    <p className="text-sm text-slate-400 font-medium mt-1">Add a new user manually</p>
-                                </div>
-                                <button onClick={() => setShowCreateUserModal(false)} className="p-2 hover:bg-slate-100 rounded-xl transition-all"><X size={20} className="text-slate-400" /></button>
-                            </div>
+                <div className="fixed inset-0 z-[100] flex flex-col bg-[#F8F9FA]">
+                    {/* Header */}
+                    <div className="h-16 px-6 bg-white border-b border-slate-200 flex items-center justify-between shrink-0 shadow-sm">
+                        <button onClick={() => setShowCreateUserModal(false)} className="text-xs font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1.5 transition-colors">
+                            &lt; Back
+                        </button>
+                        <h3 className="text-base font-bold text-slate-700">Create New User</h3>
+                        <div className="flex items-center gap-3">
+                            <button onClick={() => setShowCreateUserModal(false)} className="px-5 py-2 border border-slate-200 bg-white text-slate-600 rounded text-xs font-bold hover:bg-slate-50 transition-all shadow-sm">
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={handleCreateUser} 
+                                disabled={creatingUser || !newUserForm.consent || !newUserForm.firstName || !newUserForm.phone}
+                                className="px-5 py-2 bg-[#6DB4FF] text-white rounded text-xs font-bold hover:bg-[#5AA1FF] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                            >
+                                {creatingUser ? 'Creating...' : 'Create'}
+                            </button>
+                        </div>
+                    </div>
 
-                            <div className="space-y-4">
+                    {/* Form Body */}
+                    <div className="flex-1 overflow-y-auto p-8">
+                        <div className="max-w-3xl mx-auto bg-transparent space-y-8 mt-4">
+                            {/* Name row */}
+                            <div className="grid grid-cols-2 gap-8">
                                 <div>
-                                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">Name</label>
+                                    <div className="flex justify-between items-center mb-1.5">
+                                        <label className="block text-xs font-semibold text-slate-700">First Name</label>
+                                        <span className="text-[10px] text-slate-400">0/50</span>
+                                    </div>
                                     <input 
                                         type="text" 
-                                        placeholder="Full Name"
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 transition-all"
-                                        value={newUserForm.name}
-                                        onChange={e => setNewUserForm(prev => ({...prev, name: e.target.value}))}
+                                        maxLength={50}
+                                        className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all shadow-sm"
+                                        value={newUserForm.firstName}
+                                        onChange={e => setNewUserForm(prev => ({...prev, firstName: e.target.value}))}
                                     />
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">Email</label>
-                                        <input 
-                                            type="email" 
-                                            placeholder="user@example.com"
-                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 transition-all"
-                                            value={newUserForm.email}
-                                            onChange={e => setNewUserForm(prev => ({...prev, email: e.target.value}))}
-                                        />
+                                <div>
+                                    <div className="flex justify-between items-center mb-1.5">
+                                        <label className="block text-xs font-semibold text-slate-700">Last Name</label>
+                                        <span className="text-[10px] text-slate-400">0/50</span>
                                     </div>
-                                    <div>
-                                        <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">Phone</label>
+                                    <input 
+                                        type="text" 
+                                        maxLength={50}
+                                        className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all shadow-sm"
+                                        value={newUserForm.lastName}
+                                        onChange={e => setNewUserForm(prev => ({...prev, lastName: e.target.value}))}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Phone row */}
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Phone Number</label>
+                                <div className="flex gap-2">
+                                    <div className="relative w-40">
+                                        <select 
+                                            className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all shadow-sm appearance-none"
+                                            value={newUserForm.countryCode}
+                                            onChange={e => setNewUserForm(prev => ({...prev, countryCode: e.target.value}))}
+                                        >
+                                            <option value="+1">+1 US</option>
+                                            <option value="+44">+44 UK</option>
+                                            <option value="+91">+91 IN</option>
+                                            <option value="+61">+61 AU</option>
+                                            <option value="+971">+971 UAE</option>
+                                            <option value="+55">+55 BR</option>
+                                            <option value="+27">+27 ZA</option>
+                                        </select>
+                                        <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                                            <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </div>
+                                    </div>
+                                    <div className="flex-1 relative">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <span className="text-slate-400 text-sm">{newUserForm.countryCode.split(' ')[0]}</span>
+                                        </div>
                                         <input 
                                             type="tel" 
-                                            placeholder="+1 234..."
-                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 transition-all"
+                                            className="w-full pl-12 pr-3 py-2.5 bg-white border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all shadow-sm"
                                             value={newUserForm.phone}
                                             onChange={e => setNewUserForm(prev => ({...prev, phone: e.target.value}))}
                                         />
                                     </div>
                                 </div>
-                                <div>
-                                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">Channel</label>
+                            </div>
+
+                            {/* Email row */}
+                            <div>
+                                <div className="flex justify-between items-center mb-1.5">
+                                    <label className="block text-xs font-semibold text-slate-700">Email</label>
+                                    <span className="text-[10px] text-slate-400">0/200</span>
+                                </div>
+                                <input 
+                                    type="email" 
+                                    maxLength={200}
+                                    placeholder="name@example.com"
+                                    className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all shadow-sm"
+                                    value={newUserForm.email}
+                                    onChange={e => setNewUserForm(prev => ({...prev, email: e.target.value}))}
+                                />
+                            </div>
+
+                            {/* Gender row */}
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Gender</label>
+                                <div className="relative w-64">
                                     <select 
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 transition-all appearance-none"
-                                        value={newUserForm.channel}
-                                        onChange={e => setNewUserForm(prev => ({...prev, channel: e.target.value}))}
+                                        className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all shadow-sm appearance-none"
+                                        value={newUserForm.gender}
+                                        onChange={e => setNewUserForm(prev => ({...prev, gender: e.target.value}))}
                                     >
-                                        <option value="whatsapp">WhatsApp</option>
-                                        <option value="instagram">Instagram</option>
-                                        <option value="facebook">Facebook</option>
-                                        <option value="telegram">Telegram</option>
+                                        <option value="Male">Male</option>
+                                        <option value="Female">Female</option>
+                                        <option value="Other">Other</option>
                                     </select>
+                                    <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                                        <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="mt-8 flex gap-3">
-                                <button onClick={() => setShowCreateUserModal(false)} className="flex-1 py-3 bg-slate-50 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-all">Cancel</button>
-                                <button 
-                                    onClick={handleCreateUser} 
-                                    disabled={creatingUser || !newUserForm.name}
-                                    className="flex-1 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl font-bold shadow-lg shadow-green-200 hover:shadow-green-300 transition-all disabled:opacity-50"
-                                >
-                                    {creatingUser ? 'Creating...' : 'Create User'}
-                                </button>
+                            {/* Consent Checkbox */}
+                            <div className="pt-8">
+                                <label className="flex items-start gap-3 cursor-pointer group">
+                                    <div className="pt-0.5">
+                                        <input 
+                                            type="checkbox" 
+                                            className="w-4 h-4 rounded border-slate-300 text-[#6DB4FF] focus:ring-[#6DB4FF] transition-all cursor-pointer"
+                                            checked={newUserForm.consent}
+                                            onChange={e => setNewUserForm(prev => ({...prev, consent: e.target.checked}))}
+                                        />
+                                    </div>
+                                    <span className="text-xs text-slate-600 leading-relaxed font-medium group-hover:text-slate-800 transition-colors">
+                                        I confirm that we have obtained appropriate consent to send SMS, email, or other types
+                                        of messages from users being created or imported in compliance with applicable laws
+                                        and regulations.
+                                    </span>
+                                </label>
                             </div>
                         </div>
                     </div>

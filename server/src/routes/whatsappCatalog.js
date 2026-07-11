@@ -1,6 +1,6 @@
 import express from 'express';
 import { whatsappCatalogService } from '../services/whatsappCatalogService.js';
-import { supabase } from '../utils/supabase.js';
+import { supabase } from '../utils/db.js';
 
 const router = express.Router();
 

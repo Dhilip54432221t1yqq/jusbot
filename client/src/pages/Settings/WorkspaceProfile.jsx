@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../supabase';
+import { supabase } from '../../db';
 import config from '../../config';
 
 const timezones = [

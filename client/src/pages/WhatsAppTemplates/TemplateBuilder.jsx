@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../supabase';
+import { supabase } from '../../db';
 import config from '../../config';
 import { ArrowLeft, Plus, Trash2, HelpCircle, Save, Send } from 'lucide-react';
 import PhonePreview from './PhonePreview';
+import { useAuth } from '../../contexts/AuthContext';
 
 const CATEGORIES = ['MARKETING', 'UTILITY', 'AUTHENTICATION'];
 const LANGUAGES = [{ code: 'en_US', name: 'English (US)' }, { code: 'en_GB', name: 'English (UK)' }, { code: 'es', name: 'Spanish' }];
@@ -10,6 +11,7 @@ const HEADER_TYPES = ['NONE', 'TEXT', 'IMAGE', 'VIDEO', 'DOCUMENT'];
 const PARAM_FORMATS = [{ id: 'named', label: 'Named (e.g. {{first_name}})' }, { id: 'positional', label: 'Positional (e.g. {{1}})' }];
 
 export default function TemplateBuilder({ workspaceId, initialData, onBack }) {
+    const { authFetch } = useAuth();
     const [name, setName] = useState(initialData?.name || '');
     const [category, setCategory] = useState(initialData?.category || 'MARKETING');
     const [language, setLanguage] = useState(initialData?.language || 'en_US');
@@ -134,25 +136,14 @@ export default function TemplateBuilder({ workspaceId, initialData, onBack }) {
             }
 
             if (submit && savedTmpl) {
-                // Fetch auth token for API request
-                const { data: { session } } = await supabase.auth.getSession();
-                const token = session?.access_token;
-                
-                const wabaId = prompt("Please enter your WABA ID for submission:");
-                if (!wabaId) {
-                    throw new Error("WABA ID is required to submit to Meta.");
-                }
-
-                const response = await fetch(`${config.API_BASE}/whatsapp-templates/submit`, {
+                const response = await authFetch(`${config.API_BASE}/whatsapp-templates/submit`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         templateId: savedTmpl.id,
-                        workspaceId,
-                        wabaId
+                        workspaceId
                     })
                 });
                 

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { supabase } from '../utils/supabase.js';
+import { supabase } from '../utils/db.js';
 
 export const whatsappTemplateService = {
     async createLocalTemplate(data) {
@@ -55,11 +55,11 @@ export const whatsappTemplateService = {
         };
     },
 
-    async submitTemplateToMeta(wabaId, payload) {
+    async submitTemplateToMeta(wabaId, payload, accessToken) {
         const version = process.env.META_GRAPH_API_VERSION || 'v20.0';
-        const token = process.env.META_ACCESS_TOKEN;
+        const token = accessToken || process.env.META_ACCESS_TOKEN;
         
-        if (!token) throw new Error("META_ACCESS_TOKEN is missing");
+        if (!token) throw new Error("META_ACCESS_TOKEN is missing. Please connect WhatsApp Cloud in Settings.");
         if (!wabaId) throw new Error("WABA_ID is missing");
 
         const url = `https://graph.facebook.com/${version}/${wabaId}/message_templates`;
@@ -78,9 +78,9 @@ export const whatsappTemplateService = {
         }
     },
 
-    async syncTemplateStatus(wabaId, templateId) {
+    async syncTemplateStatus(wabaId, templateId, accessToken) {
         const version = process.env.META_GRAPH_API_VERSION || 'v20.0';
-        const token = process.env.META_ACCESS_TOKEN;
+        const token = accessToken || process.env.META_ACCESS_TOKEN;
 
         const url = `https://graph.facebook.com/${version}/${wabaId}/message_templates?id=${templateId}`;
 
@@ -96,9 +96,9 @@ export const whatsappTemplateService = {
         }
     },
 
-    async deleteTemplateFromMeta(wabaId, templateName) {
+    async deleteTemplateFromMeta(wabaId, templateName, accessToken) {
         const version = process.env.META_GRAPH_API_VERSION || 'v20.0';
-        const token = process.env.META_ACCESS_TOKEN;
+        const token = accessToken || process.env.META_ACCESS_TOKEN;
 
         const url = `https://graph.facebook.com/${version}/${wabaId}/message_templates?name=${templateName}`;
 

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { supabase } from '../utils/supabase.js';
+import { supabase } from '../utils/db.js';
 
 
 
@@ -90,5 +90,37 @@ export const whatsappCloudService = {
            error: error.response?.data?.error?.message || error.message 
          };
       }
+  },
+
+  /**
+   * Send a raw payload to the WhatsApp Cloud API (e.g. templates, interactive lists/buttons)
+   */
+  async sendRawPayload(credentials, to, payload) {
+    try {
+      const { phone_number_id, access_token, api_version = 'v23.0' } = credentials;
+      
+      const response = await axios.post(
+        `https://graph.facebook.com/${api_version}/${phone_number_id}/messages`,
+        {
+          messaging_product: 'whatsapp',
+          to: to,
+          ...payload
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${access_token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      return { success: true, data: response.data };
+    } catch (error) {
+       console.error('[WhatsApp Cloud Service] Raw Payload send failed:', error.response?.data || error.message);
+       return { 
+         success: false, 
+         error: error.response?.data?.error?.message || error.message 
+       };
+    }
   }
 };

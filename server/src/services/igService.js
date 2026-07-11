@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { facebookConfig } from '../config/facebookConfig.js';
-import { supabase } from '../utils/supabase.js';
+import { supabase } from '../utils/db.js';
 
 const GRAPH_BASE_URL = `https://graph.facebook.com/${facebookConfig.apiVersion}`;
 

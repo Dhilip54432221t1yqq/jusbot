@@ -1,4 +1,4 @@
-import { supabase } from '../utils/supabase.js';
+import { supabase } from '../utils/db.js';
 
 /**
  * Normalizes text for comparison (lowercase, trimmed)

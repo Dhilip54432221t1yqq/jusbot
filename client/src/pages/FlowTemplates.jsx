@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { MessageSquare, LayoutGrid, CheckCircle, ArrowRight, Play, Edit3, ShoppingCart, Key, Sparkles, Building2, Laptop, ShieldAlert, BookOpen } from "lucide-react";
-import { supabase } from "../supabase";
+import { supabase } from "../db";
 import { useAuth } from "../contexts/AuthContext";
 
 export default function FlowTemplates() {

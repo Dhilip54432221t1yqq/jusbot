@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, ArrowRight, Lock, Mail, Shield } from "lucide-react";
-import { supabase } from "../supabase";
+import { supabase } from "../db";
 
 export default function LoginPage() {
     const navigate = useNavigate();

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase } from '../supabase';
+import { supabase } from '../db';
 import config from '../config';
 import { CheckCircle, Save, Smartphone, Settings, IndianRupee, Shield, ShieldAlert, ArrowRight, Zap, Search } from 'lucide-react';
 

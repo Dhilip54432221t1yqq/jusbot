@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { supabase } from '../utils/supabase.js';
+import { supabase } from '../utils/db.js';
 
 export const whatsappAdsService = {
     async getWelcomeSequences(workspaceId, wabaId) {

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState } from 'react';
-import { supabase } from '../supabase';
+import { supabase } from '../db';
 import { useAuth } from './AuthContext';
 import config from '../config';
 

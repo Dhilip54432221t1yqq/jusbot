@@ -3,7 +3,11 @@ import { Handle, Position, useEdges } from "reactflow";
 export default function QuestionNode({ id, data, selected }) {
   const isConfigured = data.question_type || data.question_text;
   const edges = useEdges();
-  const connected = edges.some(e => e.source === id && e.sourceHandle === "continue");
+  const isConnected = (handleId) => edges.some(e => e.source === id && e.sourceHandle === handleId);
+
+  const answers = data.answers || [];
+  const dynamicAnswers = data.dynamic_answers || [];
+  const hasOptions = answers.length > 0 || dynamicAnswers.length > 0;
 
   return (
     <div className="relative flex flex-col items-center w-[300px]">
@@ -40,23 +44,85 @@ export default function QuestionNode({ id, data, selected }) {
             <span className="text-slate-800 text-[15px] font-medium mt-1">Click to add question</span>
           </div>
         ) : (
-          <div className="bg-slate-50 rounded-[16px] p-5 border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors">
-            <p className="text-slate-800 text-[14px] whitespace-pre-wrap leading-relaxed">
-              {data.question_text || `Collect ${data.question_type} input...`}
-            </p>
+          <div className="space-y-3.5 w-full">
+            <div className="bg-slate-50 rounded-[16px] p-5 border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors">
+              <p className="text-slate-800 text-[14px] whitespace-pre-wrap leading-relaxed">
+                {data.question_text || `Collect ${data.question_type} input...`}
+              </p>
+            </div>
+
+            {/* Render options/answers as buttons with handles */}
+            {hasOptions && (
+              <div className="flex flex-col gap-2 mt-2">
+                {answers.map((ans, i) => {
+                  const connected = isConnected(`ans-${ans.id}`);
+                  return (
+                    <div key={ans.id} className="relative w-full bg-slate-50 rounded-xl py-2 px-4 flex items-center justify-between border border-slate-100 shadow-sm">
+                      <span className="text-[13px] font-semibold text-black">{ans.text || `Option ${i + 1}`}</span>
+                      <Handle
+                        type="source"
+                        position={Position.Right}
+                        id={`ans-${ans.id}`}
+                        className={`!absolute !-right-2.5 !top-1/2 !-translate-y-1/2 !w-5 !h-5 !border-[2.5px] !border-[#5eead4] !rounded-full !m-0 !transform-none transition-colors ${connected ? '!bg-[#5eead4]' : '!bg-white'}`}
+                      />
+                    </div>
+                  );
+                })}
+                {dynamicAnswers.map((ans, i) => {
+                  const connected = isConnected(`ans-${ans.id}`);
+                  return (
+                    <div key={ans.id} className="relative w-full bg-blue-50/50 rounded-xl py-2 px-4 flex items-center justify-between border border-blue-200 shadow-sm">
+                      <span className="text-[13px] font-semibold text-blue-700">Dynamic: {ans.text || `Option ${i + 1}`}</span>
+                      <Handle
+                        type="source"
+                        position={Position.Right}
+                        id={`ans-${ans.id}`}
+                        className={`!absolute !-right-2.5 !top-1/2 !-translate-y-1/2 !w-5 !h-5 !border-[2.5px] !border-[#5eead4] !rounded-full !m-0 !transform-none transition-colors ${connected ? '!bg-[#5eead4]' : '!bg-white'}`}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
-        {/* Continue to Next Step */}
-        <div className="relative w-full flex items-center justify-center pt-4 pb-2">
-          <span className="text-black text-[15px] font-medium tracking-wide pr-4">Continue to Next Step</span>
-          <Handle
-            type="source"
-            position={Position.Right}
-            id="continue"
-            className={`!absolute !right-1 !top-1/2 !translate-y-[calc(-50%+4px)] !w-6 !h-6 !border-[2.5px] !border-black !rounded-full !m-0 !transform-none hover:!bg-black/10 transition-colors ${connected ? '!bg-black' : '!bg-transparent'}`}
-          />
-        </div>
+        {/* Continue to Next Step handle (only if there are no custom options) */}
+        {!hasOptions && (
+          <div className="relative w-full flex items-center justify-center pt-4 pb-2">
+            <span className="text-black text-[15px] font-medium tracking-wide pr-4">Continue to Next Step</span>
+            <Handle
+              type="source"
+              position={Position.Right}
+              id="continue"
+              className={`!absolute !right-1 !top-1/2 !translate-y-[calc(-50%+4px)] !w-6 !h-6 !border-[2.5px] !border-black !rounded-full !m-0 !transform-none hover:!bg-black/10 transition-colors ${isConnected("continue") ? '!bg-black' : '!bg-transparent'}`}
+            />
+          </div>
+        )}
+
+        {/* Special handles: No Match / No Input */}
+        {data.no_match && (
+          <div className="relative w-full bg-red-50/20 rounded-xl py-2 px-4 flex items-center justify-between border border-red-100 shadow-sm mt-2">
+            <span className="text-[13px] font-semibold text-red-600">No Match</span>
+            <Handle
+              type="source"
+              position={Position.Right}
+              id="no_match"
+              className={`!absolute !-right-2.5 !top-1/2 !-translate-y-1/2 !w-5 !h-5 !border-[2.5px] !border-[#5eead4] !rounded-full !m-0 !transform-none transition-colors ${isConnected("no_match") ? '!bg-[#5eead4]' : '!bg-white'}`}
+            />
+          </div>
+        )}
+        {data.no_input && (
+          <div className="relative w-full bg-amber-50/20 rounded-xl py-2 px-4 flex items-center justify-between border border-amber-100 shadow-sm mt-2">
+            <span className="text-[13px] font-semibold text-amber-600">No Input</span>
+            <Handle
+              type="source"
+              position={Position.Right}
+              id="no_input"
+              className={`!absolute !-right-2.5 !top-1/2 !-translate-y-1/2 !w-5 !h-5 !border-[2.5px] !border-[#5eead4] !rounded-full !m-0 !transform-none transition-colors ${isConnected("no_input") ? '!bg-[#5eead4]' : '!bg-white'}`}
+            />
+          </div>
+        )}
 
       </div>
     </div>

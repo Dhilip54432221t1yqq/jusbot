@@ -4,7 +4,7 @@ import {
   Send, Paperclip, Smile, Tag, Info, MessageSquare, Plus, X
 } from 'lucide-react';
 import { useParams } from 'react-router-dom';
-import { supabase } from '../supabase';
+import { supabase } from '../db';
 import { useAuth } from '../contexts/AuthContext';
 import { io } from 'socket.io-client';
 import config from '../config';
@@ -33,6 +33,7 @@ export default function LiveChat() {
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState('open');
+  const [channelFilter, setChannelFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   
   const [showNewChatModal, setShowNewChatModal] = useState(false);
@@ -46,12 +47,11 @@ export default function LiveChat() {
   // Use a ref to track active conversation inside socket callbacks (avoids stale closure)
   const activeConversationRef = useRef(null);
 
-  // Load conversations when filter or workspaceId changes
   useEffect(() => {
     if (workspaceId) {
       loadConversations();
     }
-  }, [workspaceId, filter]);
+  }, [workspaceId, filter, channelFilter]);
 
   // Initialize socket ONCE on mount — don't recreate on conversation change
   useEffect(() => {
@@ -102,7 +102,8 @@ export default function LiveChat() {
 
   const loadConversations = async () => {
     try {
-      const response = await authFetch(`${API_BASE_URL}/${workspaceId}/conversations?status=${filter}`);
+      const apiChannel = channelFilter === 'whatsapp' ? 'whatsapp_cloud' : channelFilter;
+      const response = await authFetch(`${API_BASE_URL}/${workspaceId}/conversations?status=${filter}&channel=${apiChannel}`);
       const data = await response.json();
       setConversations(data);
       setIsLoading(false);
@@ -184,7 +185,7 @@ export default function LiveChat() {
         method: 'POST',
         body: JSON.stringify({ 
           contactId: contact.id, 
-          channelType: contact.channel || 'whatsapp' 
+          channelType: contact.channel === 'whatsapp' ? 'whatsapp_cloud' : (contact.channel || 'whatsapp_cloud')
         })
       });
       if (res.ok) {
@@ -242,6 +243,31 @@ export default function LiveChat() {
                 {s}
               </button>
             ))}
+          </div>
+
+          {/* Channel Filter Cards */}
+          <div className="grid grid-cols-3 gap-2 mt-4">
+            {['whatsapp', 'instagram', 'facebook'].map((channel) => {
+              let isActive = channelFilter === channel;
+              let bgClass = 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50';
+              if (isActive) {
+                if (channel === 'whatsapp') bgClass = 'bg-green-50 border-green-200 text-green-700';
+                if (channel === 'instagram') bgClass = 'bg-pink-50 border-pink-200 text-pink-700';
+                if (channel === 'facebook') bgClass = 'bg-blue-50 border-blue-200 text-blue-700';
+              }
+              return (
+                <button 
+                  key={channel}
+                  onClick={() => setChannelFilter(isActive ? 'all' : channel)}
+                  className={`py-3 rounded-xl text-xs font-bold flex flex-col items-center justify-center gap-1.5 transition-colors border shadow-sm ${bgClass}`}
+                >
+                  {channel === 'whatsapp' && <MessageCircle className="w-5 h-5" />}
+                  {channel === 'instagram' && <Instagram className="w-5 h-5" />}
+                  {channel === 'facebook' && <MessageSquare className="w-5 h-5" />}
+                  <span className="capitalize">{channel}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">

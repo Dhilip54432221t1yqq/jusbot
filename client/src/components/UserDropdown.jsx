@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { User, LogOut, Settings, Bell, ChevronDown } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { supabase } from '../supabase';
+import { supabase } from '../db';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function UserDropdown() {

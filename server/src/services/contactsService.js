@@ -1,4 +1,4 @@
-import { supabase } from '../utils/supabase.js';
+import { supabase } from '../utils/db.js';
 
 export const contactsService = {
 

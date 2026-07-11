@@ -1,6 +1,6 @@
 
 import './src/config/env.js';
-import { supabase } from './src/utils/supabase.js';
+import { supabase } from './src/utils/db.js';
 
 async function testWithValidUser() {
     console.log('--- Testing with Valid User ID ---');

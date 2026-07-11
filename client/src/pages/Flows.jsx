@@ -4,7 +4,7 @@ import {
     Folder, GitBranch, Sparkles, X
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
-import { supabase } from "../supabase";
+import { supabase } from "../db";
 import { useWorkspace } from "../contexts/WorkspaceContext";
 import ReactFlow, { Background, MarkerType } from 'reactflow';
 import 'reactflow/dist/style.css';

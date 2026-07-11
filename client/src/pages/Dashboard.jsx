@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Cloud, BarChart3, ChevronRight, Zap, CheckCircle } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { supabase } from '../supabase';
+import { supabase } from '../db';
 
 export default function Dashboard() {
     const navigate = useNavigate();

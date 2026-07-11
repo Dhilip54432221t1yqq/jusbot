@@ -1,6 +1,6 @@
 import express from 'express';
 import { whatsappTemplateService } from '../services/whatsappTemplateService.js';
-import { supabase } from '../utils/supabase.js';
+import { supabase } from '../utils/db.js';
 
 const router = express.Router();
 
@@ -9,8 +9,8 @@ const router = express.Router();
 
 router.post('/submit', async (req, res) => {
     try {
-        const { templateId, workspaceId, wabaId } = req.body;
-        if (!templateId || !workspaceId || !wabaId) {
+        const { templateId, workspaceId } = req.body;
+        if (!templateId || !workspaceId) {
             return res.status(400).json({ error: 'Missing required parameters' });
         }
 
@@ -26,8 +26,23 @@ router.post('/submit', async (req, res) => {
         // 3. Build Payload
         const payload = whatsappTemplateService.buildMetaTemplatePayload(tmpl);
 
+        // Fetch channel credentials for the access token and wabaId
+        const { data: channel } = await supabase
+            .from('channels')
+            .select('credentials')
+            .eq('workspace_id', workspaceId)
+            .eq('channel_type', 'whatsapp_cloud')
+            .single();
+
+        const accessToken = channel?.credentials?.access_token;
+        const wabaId = channel?.credentials?.waba_id;
+        
+        if (!wabaId) {
+            return res.status(400).json({ error: 'WABA ID not found. Please connect WhatsApp Cloud.' });
+        }
+
         // 4. Submit to Meta
-        const metaResponse = await whatsappTemplateService.submitTemplateToMeta(wabaId, payload);
+        const metaResponse = await whatsappTemplateService.submitTemplateToMeta(wabaId, payload, accessToken);
 
         // 5. Update local status
         const metaId = metaResponse.id || null;
@@ -46,14 +61,28 @@ router.post('/submit', async (req, res) => {
 
 router.post('/sync', async (req, res) => {
     try {
-        const { templateId, wabaId } = req.body;
+        const { templateId, workspaceId } = req.body;
         const { data: tmpl } = await supabase.from('whatsapp_templates').select('*').eq('id', templateId).single();
         
         if (!tmpl || !tmpl.meta_template_id) {
             return res.status(400).json({ error: 'Invalid template for sync' });
         }
 
-        const metaData = await whatsappTemplateService.syncTemplateStatus(wabaId, tmpl.meta_template_id);
+        const { data: channel } = await supabase
+            .from('channels')
+            .select('credentials')
+            .eq('workspace_id', workspaceId || tmpl.workspace_id)
+            .eq('channel_type', 'whatsapp_cloud')
+            .single();
+
+        const accessToken = channel?.credentials?.access_token;
+        const wabaId = channel?.credentials?.waba_id;
+
+        if (!wabaId) {
+            return res.status(400).json({ error: 'WABA ID not found.' });
+        }
+
+        const metaData = await whatsappTemplateService.syncTemplateStatus(wabaId, tmpl.meta_template_id, accessToken);
         
         if (metaData && metaData.status) {
             let status = 'Unknown';
@@ -78,8 +107,23 @@ router.post('/sync', async (req, res) => {
 
 router.delete('/meta/:id', async (req, res) => {
     try {
-        const { wabaId, name } = req.query;
-        await whatsappTemplateService.deleteTemplateFromMeta(wabaId, name);
+        const { name, workspaceId } = req.query;
+        
+        const { data: channel } = await supabase
+            .from('channels')
+            .select('credentials')
+            .eq('workspace_id', workspaceId)
+            .eq('channel_type', 'whatsapp_cloud')
+            .single();
+
+        const accessToken = channel?.credentials?.access_token;
+        const wabaId = channel?.credentials?.waba_id;
+
+        if (!wabaId) {
+            return res.status(400).json({ error: 'WABA ID not found.' });
+        }
+
+        await whatsappTemplateService.deleteTemplateFromMeta(wabaId, name, accessToken);
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });

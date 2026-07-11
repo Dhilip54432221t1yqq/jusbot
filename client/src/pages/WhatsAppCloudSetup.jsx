@@ -9,23 +9,34 @@ export default function WhatsAppCloudSetup() {
     const navigate = useNavigate();
     const { authFetch } = useAuth();
 
-    const [whatsappId] = useState('655465465465453453');
-    const [whatsappNumber] = useState('919787866776');
+    const [fbAppId, setFbAppId] = useState('1336518974614294');
+    const [fbConfigId, setFbConfigId] = useState('');
+    const [wabaId, setWabaId] = useState('');
+    const [phoneId, setPhoneId] = useState('');
+    
+
     const [isConnected, setIsConnected] = useState(() => localStorage.getItem(`reflx_whatsapp_connected_${workspaceId}`) === 'true');
     const [isBotLinked, setIsBotLinked] = useState(() => localStorage.getItem(`reflx_whatsapp_bot_linked_${workspaceId}`) === 'true');
     const [isAccountActive, setIsAccountActive] = useState(() => localStorage.getItem(`reflx_whatsapp_account_active_${workspaceId}`) !== 'false');
     const [isConnecting, setIsConnecting] = useState(false);
+    const [isFbReady, setIsFbReady] = useState(false);
     const [isDisconnectModalOpen, setIsDisconnectModalOpen] = useState(false);
     const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
+    // 1. Fetch current status and App ID configuration from backend
     useEffect(() => {
         const fetchStatus = async () => {
             try {
                 const res = await authFetch(`${config.API_BASE}/whatsapp-cloud/status/${workspaceId}`);
                 if (res.ok) {
                     const data = await res.json();
+                    if (data.fbAppId) setFbAppId(data.fbAppId);
+                    if (data.fbConfigId) setFbConfigId(data.fbConfigId);
+                    
                     if (data.connected) {
                         setIsConnected(true);
+                        setWabaId(data.wabaId || '');
+                        setPhoneId(data.phoneNumberId || '');
                         setIsAccountActive(data.isAccountActive);
                         setIsBotLinked(data.isBotLinked);
                         localStorage.setItem(`reflx_whatsapp_connected_${workspaceId}`, 'true');
@@ -41,44 +52,146 @@ export default function WhatsAppCloudSetup() {
         fetchStatus();
     }, [workspaceId, authFetch]);
 
-    const showToast = (/** @type {string} */ message, type = 'success') => {
+    // 2. Load Facebook JS SDK asynchronously
+    useEffect(() => {
+        if (!fbAppId) return;
+
+        const initFB = () => {
+            window.FB.init({
+                appId            : fbAppId,
+                autoLogAppEvents : true,
+                xfbml            : true,
+                version          : 'v25.0'
+            });
+            setIsFbReady(true);
+        };
+
+        // If FB is already loaded (e.g. hot reload), just re-init
+        if (window.FB) {
+            initFB();
+            return;
+        }
+
+        window.fbAsyncInit = initFB;
+
+        const scriptId = 'facebook-jssdk';
+        if (!document.getElementById(scriptId)) {
+            const js = document.createElement('script');
+            js.id = scriptId;
+            js.src = "https://connect.facebook.net/en_US/sdk.js";
+            js.async = true;
+            js.defer = true;
+            js.crossOrigin = "anonymous";
+            document.getElementsByTagName('head')[0].appendChild(js);
+        }
+    }, [fbAppId]);
+
+    // 3. Listen for Embedded Signup postMessage event containing WABA/Phone IDs
+    useEffect(() => {
+        const handleMessage = (event) => {
+            if (event.origin !== "https://www.facebook.com") return;
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type === 'WA_EMBEDDED_SIGNUP') {
+                    if (data.event === 'FINISH') {
+                        const wabaVal = data.waba_id;
+                        const phoneVal = data.phone_number_id;
+                        if (wabaVal) setWabaId(wabaVal);
+                        if (phoneVal) setPhoneId(phoneVal);
+                        console.log("Captured Embedded Signup Event data:", data);
+                    }
+                }
+            } catch (err) {}
+        };
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, []);
+
+    const showToast = (message, type = 'success') => {
         setToast({ show: true, message, type });
         setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 4000);
     };
 
+    // 4. Launch Embedded Signup Flow or Manual setup
     const handleConnect = async () => {
+        // Embedded Signup path — requires FB SDK to be ready
+        if (!window.FB || !isFbReady) {
+            showToast("Facebook SDK is still loading. Please try again in a moment.", "error");
+            return;
+        }
+
+        // config_id is REQUIRED for Facebook Login for Business (per Meta docs)
+        // Without it, the FB.login popup will not open
+        if (!fbConfigId) {
+            showToast("WhatsApp Embedded Signup Configuration ID is not set. Contact your admin.", "error");
+            return;
+        }
+
         setIsConnecting(true);
+
         try {
-            // Save locally immediately for a seamless UX
-            localStorage.setItem(`reflx_whatsapp_connected_${workspaceId}`, 'true');
+            // Per Meta docs (Facebook Login for Business — Business Integration System User token flow):
+            // config_id replaces scope, response_type must be 'code', override_default_response_type must be true
+            // extras.featureType is required for WhatsApp Embedded Signup
+            window.FB.login(function(response) {
+                if (response.authResponse) {
+                    const code = response.authResponse.code;
 
-            // Notify database/backend using standard mock credentials
-            await authFetch(`${config.API_BASE}/whatsapp-cloud/config`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    workspaceId,
-                    phoneNumberId: whatsappNumber,
-                    wabaId: whatsappId,
-                    accessToken: 'dummy_token_reflx_2026',
-                    verifyToken: 'reflx_webhook_secret_2026',
-                    apiVersion: 'v23.0'
-                })
+                    // Server-to-server token exchange (never expose app secret client-side)
+                    // GET https://graph.facebook.com/v25.0/oauth/access_token?client_id=&client_secret=&code=
+                    authFetch(`${config.API_BASE}/whatsapp-cloud/exchange-code`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            workspaceId,
+                            code,
+                            wabaId: wabaId || undefined,
+                            phoneId: phoneId || undefined
+                        })
+                    }).then(async (res) => {
+                        if (res.ok) {
+                            const data = await res.json();
+                            setIsConnected(true);
+                            setWabaId(data.wabaId || wabaId);
+                            setPhoneId(data.phoneId || phoneId);
+                            localStorage.setItem(`reflx_whatsapp_connected_${workspaceId}`, 'true');
+                            showToast("WhatsApp connected via Facebook Embedded Signup!");
+                            setTimeout(() => window.location.reload(), 1500);
+                        } else {
+                            return res.json().then(errData => {
+                                showToast(errData.error || "Failed to exchange token", "error");
+                            });
+                        }
+                    }).catch(() => {
+                        showToast("An error occurred during token exchange", "error");
+                    }).finally(() => {
+                        setIsConnecting(false);
+                    });
+                } else {
+                    // User closed the popup or cancelled
+                    setIsConnecting(false);
+                    showToast("Login cancelled. Please try again.", "error");
+                }
+            }, {
+                // Exact parameters per Meta docs for Business Integration System User access tokens
+                config_id: fbConfigId,                    // Required: Configuration ID from Meta App Dashboard
+                response_type: 'code',                    // Required: SISU tokens require authorization code grant
+                override_default_response_type: true,     // Required: must be true when using response_type
+                // extras.featureType is required for WhatsApp Embedded Signup
+                extras: {
+                    featureType: 'whatsapp_embedded_signup',
+                    sessionInfoVersion: 2
+                }
             });
-
-            setIsConnected(true);
-            showToast("WhatsApp connected successfully!");
-        } catch (e) {
-            showToast("An error occurred during connection", "error");
-        } finally {
+        } catch (err) {
+            console.error('FB.login error:', err);
             setIsConnecting(false);
+            showToast("Could not open Facebook login. Ensure popups are allowed.", "error");
         }
     };
 
     const handleOpenBot = async () => {
         localStorage.setItem(`reflx_whatsapp_bot_opened_${workspaceId}`, 'true');
-
-        
         try {
             await authFetch(`${config.API_BASE}/whatsapp-cloud/settings`, {
                 method: 'PUT',
@@ -88,7 +201,6 @@ export default function WhatsAppCloudSetup() {
         } catch(e) {
             console.error("Failed to sync bot opened state");
         }
-        
         showToast("WhatsApp Bot Activated!");
         navigate(`/${workspaceId}/whatsapp/templates`);
         window.location.reload(); 
@@ -96,7 +208,6 @@ export default function WhatsAppCloudSetup() {
 
     const handleDisconnect = async () => {
         setIsDisconnectModalOpen(false);
-        
         try {
             await authFetch(`${config.API_BASE}/whatsapp-cloud/disconnect/${workspaceId}`, {
                 method: 'DELETE'
@@ -113,6 +224,8 @@ export default function WhatsAppCloudSetup() {
         setIsConnected(false);
         setIsBotLinked(false);
         setIsAccountActive(true);
+        setWabaId('');
+        setPhoneId('');
         showToast("Disconnected successfully");
         
         navigate(`/${workspaceId}/whatsapp-cloud`);
@@ -156,25 +269,41 @@ export default function WhatsAppCloudSetup() {
                             <div className="w-5 h-5 flex items-center justify-center">
                                 <img src="https://cjlngemrulrgmlhixjbs.supabase.co/storage/v1/object/public/brand-assets/Jusbot-Default%20Asset/WhatsApp%20Icon.png" alt="WhatsApp" className="w-full h-full object-contain" />
                             </div>
-                            <h2 className="text-sm font-semibold text-slate-800">WhatsApp Cloud API</h2>
+                            <h2 className="text-sm font-semibold text-slate-800">WhatsApp Setup</h2>
                             <Info size={14} className="text-slate-400" />
                         </div>
 
                         {/* Card Body */}
                         <div className="p-6">
-                            <p className="text-sm text-slate-600 mb-6">
-                                You can create WhatsApp flows on a connected WhatsApp Business Account.
-                            </p>
-                            
-                            <div className="max-w-md pt-2">
-                                <button 
-                                    onClick={handleConnect} 
-                                    disabled={isConnecting}
-                                    className="px-6 py-2.5 bg-[#25D366] text-white font-medium text-sm rounded-lg hover:bg-green-600 active:bg-green-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm"
-                                >
-                                    {isConnecting ? <RefreshCw size={16} className="animate-spin" /> : null}
-                                    {isConnecting ? "Connecting..." : "Connect WhatsApp"}
-                                </button>
+                            <div className="space-y-4">
+                                {/* Config ID missing warning (keeps it for debugging if needed) */}
+                                {!fbConfigId && (
+                                    <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 max-w-2xl">
+                                        <AlertCircle size={16} className="text-amber-500 mt-0.5 shrink-0" />
+                                        <div className="text-xs text-amber-700">
+                                            <span className="font-bold">Configuration ID missing.</span> Add <code className="bg-amber-100 px-1 rounded">FB_CONFIG_ID</code> to your server <code className="bg-amber-100 px-1 rounded">.env</code>. Get it from <span className="font-semibold">Meta App Dashboard → Facebook Login for Business → Configurations</span>.
+                                        </div>
+                                    </div>
+                                )}
+                                <p className="text-[13px] text-slate-600">
+                                    You can automate WhatsApp messages on a connected WhatsApp Business Account.
+                                </p>
+                                
+                                <div className="pt-2">
+                                    <button 
+                                        onClick={handleConnect} 
+                                        disabled={isConnecting || !isFbReady}
+                                        style={{ backgroundColor: isConnecting || !isFbReady ? '#8fdba7' : '#25D366' }}
+                                        className="px-6 py-2.5 text-white font-bold text-sm rounded-lg hover:opacity-90 active:opacity-95 transition-all duration-200 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm"
+                                    >
+                                        {isConnecting ? (
+                                            <RefreshCw size={16} className="animate-spin" />
+                                        ) : !isFbReady ? (
+                                            <RefreshCw size={16} className="animate-spin" />
+                                        ) : null}
+                                        {isConnecting ? "Connecting..." : !isFbReady ? "Loading SDK..." : "Connect WhatsApp"}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -186,7 +315,7 @@ export default function WhatsAppCloudSetup() {
                                     <div className="text-sm font-semibold text-slate-800 mb-4 mt-0.5">Jusbot</div>
                                     
                                     <div className="text-xs text-slate-500 font-medium">Business Id</div>
-                                    <div className="text-sm font-semibold text-slate-800 font-mono mb-5 mt-0.5">655465465465453453</div>
+                                    <div className="text-sm font-semibold text-slate-800 font-mono mb-5 mt-0.5">{wabaId || '655465465465453453'}</div>
                                     
                                     <div className="flex items-center gap-3">
                                         <button className="px-4 py-2 bg-blue-50 text-blue-600 border border-blue-200 rounded-md text-xs font-semibold hover:bg-blue-100 transition-colors">
@@ -233,12 +362,12 @@ export default function WhatsAppCloudSetup() {
                                                     </button>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <div className="text-sm font-medium text-slate-800">919787866776</div>
+                                                    <div className="text-sm font-medium text-slate-800">{phoneId || '919787866776'}</div>
                                                     <div className="text-xs text-slate-500 mt-0.5">Jusbot</div>
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <div className="text-sm font-medium text-slate-800">Jusbot</div>
-                                                    <div className="text-xs text-slate-500 font-mono mt-0.5">655465465465453453</div>
+                                                    <div className="text-xs text-slate-500 font-mono mt-0.5">{wabaId || '655465465465453453'}</div>
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <button className="bg-slate-100 text-slate-600 border border-slate-300 text-[11px] font-bold px-4 py-1.5 rounded-md hover:bg-slate-200 transition-colors">

@@ -1,5 +1,5 @@
 import { google } from 'googleapis';
-import { supabase } from '../utils/supabase.js';
+import { supabase } from '../utils/db.js';
 
 const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,

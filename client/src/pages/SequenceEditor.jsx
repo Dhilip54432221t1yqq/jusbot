@@ -5,7 +5,7 @@ import {
   Plus, X, CheckCircle, ChevronLeft, Clock, Send, 
   Calendar, Shield, Save, ArrowDown, Trash2, Edit2, Zap
 } from 'lucide-react';
-import { supabase } from '../supabase';
+import { supabase } from '../db';
 import config from '../config';
 
 const API = config.API_BASE;

@@ -1,9 +1,10 @@
 import express from 'express';
-import { supabase } from '../utils/supabase.js';
+import { supabase } from '../utils/db.js';
 import { livechatService } from '../services/livechatService.js';
 import { contactsService } from '../services/contactsService.js';
 import { fireTriggersByEvent } from './triggers.js';
 import { processAutomation } from '../services/automationService.js';
+import { flowExecutionService } from '../services/flowExecutionService.js';
 
 const router = express.Router();
 
@@ -101,14 +102,31 @@ router.post('/whatsapp', async (req, res) => {
             const message = change.value.messages[0];
             const contact = change.value.contacts[0];
             const phone = message.from;
-            const text = message.text ? message.text.body : '';
             
+            let text = '';
+            let buttonId = null;
+
+            if (message.type === 'text') {
+              text = message.text?.body || '';
+            } else if (message.type === 'interactive') {
+              if (message.interactive?.type === 'button_reply') {
+                text = message.interactive.button_reply?.title || '';
+                buttonId = message.interactive.button_reply?.id || null;
+              } else if (message.interactive?.type === 'list_reply') {
+                text = message.interactive.list_reply?.title || '';
+                buttonId = message.interactive.list_reply?.id || null;
+              }
+            } else if (message.type === 'button') {
+              text = message.button?.text || '';
+              buttonId = message.button?.payload || null;
+            }
+
             const result = await handleIncomingMessage('whatsapp', {
               externalSenderId: phone,
-              content: text,
+              content: text || '[Interactive Response]',
               workspaceId: req.query.workspaceId, // Passed in webhook URL
               channelId: req.query.channelId,
-              name: contact.profile.name
+              name: contact.profile?.name || `WhatsApp User ${phone}`
             });
 
             req.app.get('io')?.to(`conversation:${result.conversation.id}`).emit('new_message', result.message);
@@ -116,16 +134,12 @@ router.post('/whatsapp', async (req, res) => {
 
             // Fire matching triggers
             await fireTriggersByEvent(req.query.workspaceId, 'whatsapp_incoming', {
-              phone, text, contact_name: contact.profile.name,
+              phone, text, contact_name: contact.profile?.name || `WhatsApp User ${phone}`,
               message_id: message.id, conversation_id: result.conversation?.id
             });
 
-            // Process Keyword Automation & Default Reply
-            const automationMatch = await processAutomation(req.query.workspaceId, text, result.conversation?.contact_id);
-            if (automationMatch) {
-                // Here we would trigger the flow engine
-                // console.log('Automation triggered flow:', automationMatch.flow_id);
-            }
+            // Process the message through the flow execution engine
+            await flowExecutionService.handleIncomingMessage(req.query.workspaceId, result.conversation.contact_id, text, { buttonId });
           }
         }
       }

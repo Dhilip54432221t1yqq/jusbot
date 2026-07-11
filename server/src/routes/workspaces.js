@@ -1,5 +1,5 @@
 import express from 'express';
-import { supabase } from '../utils/supabase.js';
+import { supabase } from '../utils/db.js';
 import { requireWorkspaceAccess } from '../middleware/requireWorkspaceAccess.js';
 
 const router = express.Router();
@@ -11,25 +11,33 @@ router.get('/', async (req, res) => {
 
     try {
         // Fetch workspaces where user is a member/owner
-        const { data, error } = await supabase
+        const { data: memberships, error: memError } = await supabase
             .from('workspace_members')
-            .select(`
-                role,
-                workspaces (
-                    id,
-                    name,
-                    created_at
-                )
-            `)
+            .select('*')
             .eq('user_id', userId);
 
-        if (error) throw error;
+        if (memError) throw memError;
 
-        // Flatten the response
-        const workspaces = data.map(m => ({
-            ...m.workspaces,
-            role: m.role
-        }));
+        const workspaces = [];
+        for (const membership of memberships) {
+            const { data: ws } = await supabase
+                .from('workspaces')
+                .select('*')
+                .eq('id', membership.workspace_id)
+                .single();
+
+            if (ws) {
+                workspaces.push({
+                    id: ws.id,
+                    name: ws.name,
+                    created_at: ws.created_at,
+                    logo_url: ws.logo_url,
+                    timezone: ws.timezone,
+                    default_theme: ws.default_theme,
+                    role: membership.role
+                });
+            }
+        }
 
         res.json(workspaces);
     } catch (err) {
@@ -120,62 +128,42 @@ router.get('/:id/members', requireWorkspaceAccess(['owner', 'admin', 'member']),
     const { id } = req.params;
     
     try {
-        // First, try to fetch with profiles join
-        const { data, error } = await supabase
+        // Fetch workspace members
+        const { data: members, error: memError } = await supabase
             .from('workspace_members')
-            .select(`
-                id,
-                user_id,
-                role,
-                email,
-                created_at,
-                profiles:user_id (
-                    email,
-                    full_name,
-                    avatar_url
-                )
-            `)
+            .select('*')
             .eq('workspace_id', id);
 
-        if (error) {
-            console.warn('[Members] Join fetch failed, trying fallback:', error.message);
-            // Fallback: Fetch without join if profiles table is missing or relationship is broken
-            const { data: simpleData, error: simpleError } = await supabase
-                .from('workspace_members')
-                .select('id, user_id, role, email, created_at')
-                .eq('workspace_id', id);
+        if (memError) throw memError;
 
-            if (simpleError) throw simpleError;
+        const results = [];
+        for (const m of members) {
+            let profile = null;
+            if (m.user_id) {
+                const { data: profData } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', m.user_id)
+                    .maybeSingle();
+                profile = profData;
+            }
             
-            return res.json(simpleData.map(m => ({
-                ...m,
-                email: m.email || 'Unknown',
-                name: m.role === 'owner' ? 'Owner' : 'Member'
-            })));
-        }
-        
-        // Flatten and format
-        const members = data.map(m => {
-            const profile = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
-            const email = profile?.email || m.email || 'Unknown';
-            const name = profile?.full_name || (
-                m.role === 'owner' ? 'Owner' : 
-                m.role === 'admin' ? 'Admin' : 
-                (m.user_id ? 'Member' : 'Invited (Pending)')
-            );
-            
-            return {
+            results.push({
                 id: m.id,
                 user_id: m.user_id,
                 role: m.role,
                 created_at: m.created_at,
-                email: email,
-                name: name,
+                email: profile?.email || m.email || 'Unknown',
+                name: profile?.full_name || (
+                    m.role === 'owner' ? 'Owner' : 
+                    m.role === 'admin' ? 'Admin' : 
+                    (m.user_id ? 'Member' : 'Invited (Pending)')
+                ),
                 avatar_url: profile?.avatar_url
-            };
-        });
+            });
+        }
 
-        res.json(members);
+        res.json(results);
     } catch (err) {
         console.error('Error fetching members:', err);
         res.status(500).json({ error: err.message });

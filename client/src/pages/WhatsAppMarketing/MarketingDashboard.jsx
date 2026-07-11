@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../supabase';
+import { supabase } from '../../db';
 import { ShieldCheck, ShieldAlert, AlertTriangle, HelpCircle } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import config from '../../config';

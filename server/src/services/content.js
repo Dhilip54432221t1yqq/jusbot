@@ -1,5 +1,5 @@
 
-import { supabase } from '../utils/supabase.js';
+import { supabase } from '../utils/db.js';
 import axios from 'axios';
 
 // Unified Fields (User, Bot, System)

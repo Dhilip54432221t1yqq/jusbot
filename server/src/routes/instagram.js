@@ -1,5 +1,5 @@
 import express from 'express';
-import { supabase } from '../utils/supabase.js';
+import { supabase } from '../utils/db.js';
 import { igService } from '../services/igService.js';
 import { webhookService } from '../services/webhookService.js';
 import { facebookConfig } from '../config/facebookConfig.js';
